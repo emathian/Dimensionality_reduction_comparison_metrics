@@ -29,51 +29,14 @@ CP2 <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , file
     colnames(dist) <- as.character(c_data[ ,1]) 
     l_dist[[i]] = dist
   }
+  if (is.null(dataRef) == FALSE){
+    distRef <- as.matrix(dist(c_data[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+    rownames(distRef) <- as.character(dataRef[ ,1])
+    colnames(distRef) <- as.character(dataRef[ ,1]) 
+  }
   # _________________________________________
   
-  # No parallel version
-  # __________
-  #np.time <- system.time({
-  #  list_CP <- list()
-  #  for (i in 1:length(l_data)){
-  #    c_data <- l_data[[i]]
-  #    c_dist <- l_dist[[i]]
-  #    CP_c_data <- data.frame()
-  #    for (k in list_K){
-  #      CP <- data.frame("Sample_ID" = as.character(c_data[, 1]), "CP" = rep(0, length(c_data[, 1])), "K"=rep(k, length(c_data[, 1])))
-  #     N <- matrix(ncol = k, nrow = dim(c_data)[1])
-  #      rownames(N) <- c_data[, 1] ; colnames(N) <- seq(k)
-  #     for (j in 1:dim(c_dist)[1]){
-  #        N_dist <- list(c_dist[i, ])[[1]]
-  #        names(N_dist) <- c_data[ ,1]
-  #       N_dist <- sort(N_dist)
-  #        KNeighbors_N <- as.character(names(N_dist)[1:k])
-  #        N[j,] <- KNeighbors_N
-  #      }
-  #     for (l in 1:dim(N)[1]){
-  #        c_point <- rownames(N)[l]
-  #        CP_j <- 0
-  #       for(j in 1:dim(N)[1]){
-  #          neighbors_j <- list(N[l, ])[[1]]
-  #          if (c_point %in% neighbors_j ){
-  #            CP_j = CP_j + (k - match(c_point,neighbors_j))
-  #          }
-  #        }
-  #        CP[l,2] =  CP_j
-  #      }
-  #      CP_c_data <- rbind(CP_c_data, CP)
-  #    }
-  #   list_CP[[i]] <- CP_c_data
-  #  }
-  #})
-  #print("nopar")
-  #print(np.time)
-  
-  
-  #print(np.time)
-  # __________
-  
-  # Parallel version
+  #_____________ Calculs of CP values _______
   p.time <- system.time({
     list_CP <- list()
     len_list_CP <- list()
@@ -112,6 +75,38 @@ CP2 <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , file
   })
   print("par")
   print(p.time)
+  
+  if (is.null(dataRef) == FALSE){
+  CPRef <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
+    k = list_K[i]
+    CPRef_k <- data.frame("Sample_ID" = as.character(dataRef[, 1]), "CP" = rep(0, length(dataRef[, 1])), "K"=rep(k, length(dataRef[, 1])))
+    N <- matrix(ncol = k, nrow = dim(dataRef)[1])
+    rownames(N) <- dataRef[, 1] ; colnames(N) <- seq(k)
+    for (j in 1:dim(distRef)[1]){
+      N_dist <- list(distRef[i, ])[[1]]
+      names(N_dist) <- dataRef[ ,1]
+      N_dist <- sort(N_dist)
+      KNeighbors_N <- as.character(names(N_dist)[1:k])
+      N[j,] <- KNeighbors_N
+    }
+    for (l in 1:dim(N)[1]){
+      c_point <- rownames(N)[l]
+      CP_j <- 0
+      for(j in 1:dim(N)[1]){
+        neighbors_j <- list(N[l, ])[[1]]
+        if (c_point %in% neighbors_j ){
+          CP_j = CP_j + (k - match(c_point,neighbors_j))
+        }
+      }
+      CPRef_k[l,2] =  CP_j
+    }
+    CPRef_k
+  }
+  list_CP[[I+1]] <- CPRef
+  len_list_CP[[I+1]] <- length(CPRef[ ,1])
+  }
+  # _________________________________________
+  
   stopCluster(cl)
   
   if (length(unique(len_list_CP))==1){
@@ -122,7 +117,7 @@ CP2 <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , file
     }  
   }
   else{
-    print("warning :  Input data frames don't the same number of lines a inner join will be done. ")
+    print("Warning :  Input data frames don't the same number of lines a inner join will be done. ")
     df_to_write <- data.frame("Sample_ID"=list_CP[[1]]$Sample_ID, 'K'= list_CP[[1]]$K, 'V1'= list_CP[[1]]$CP)
     for (i in 2:length(list_CP)){
       df_to_write <- merge(df_to_write, list_CP[[i]],  by=c('Sample_ID','K'))
@@ -132,7 +127,10 @@ CP2 <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , file
   
   if (is.null(colnames_res_df) == FALSE) { 
     print('here')
-    colnames(df_to_write)[3:length(colnames(df_to_write))] <- colnames_res_df
+    if (is.null(dataRef) == FALSE){
+      colnames_res_df <- c(colnames_res_df, 'REF_CP')
+     }
+     colnames(df_to_write)[3:length(colnames(df_to_write))] <- colnames_res_df
   }
   
   if (is.null(filename) == FALSE) {
@@ -147,8 +145,6 @@ CP2 <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , file
     write.table(df_to_write, file = filename, sep = "\t")
   }
 
-  
-  
   return(df_to_write)
 }
 
