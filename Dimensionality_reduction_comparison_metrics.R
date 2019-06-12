@@ -13,7 +13,6 @@ CP2 <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , file
   # Furthermore according the previous remark if data2 is defined, it must
   # contain the same number of samples, i.e. the same number of lines.
   
-  
   # __________ Clusters initialization ______
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
