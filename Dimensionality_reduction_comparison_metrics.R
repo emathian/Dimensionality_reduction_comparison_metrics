@@ -1,6 +1,31 @@
 library(foreach)
 library(doParallel)
 library(ggplot2)
+library(RColorBrewer)
+
+# My colors : 
+# -----------
+
+custom.col <- c( "#D16103", # dark orange
+                 "#C4961A", # gold
+                 '#B03A2E', # brick red
+                 '#2ECC71', # clear green
+                 "#33691E", # olive green
+                 '#1ABC9C', # dark turquoise
+                 "#1A237E", #  dark blue
+                 '#6C3483', #  dar purple
+                 '#D81B60', # Hot pink
+                 '#626567', # dark gray
+                 "#17202A") # dark gray-blue 
+custom.col <<- append(brewer.pal(n = 12, name = "Paired"), custom.col)
+cols <- function(a) image(1:23, 1, as.matrix(1:23), col=custom.col, axes=FALSE , xlab="", ylab="")
+a <- 1:23
+cols(23)
+
+# _________________
+
+
+
 
 CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL){
   # This function calculs the centrality preservation values, according
@@ -161,12 +186,11 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
     data_CP <- cbind(data_CP, ref_CP_data$Real)
     data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
     if (is.null(Names)==TRUE){
-      Names <- colnames(data_CP)[3:length(colnames(data_CP))]
+      Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
     }
     else if (length(Names) != dim(data_CP)[2]-3){
       print("Warning :  The length of the list of Names is inconsistant in regard of the length of the input data")
-      Names <- colnames(data_CP)[3:length(colnames(data_CP))]
-      
+      Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
     }
     for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
       abs_diff <- abs(as.numeric(data_CP[, I]) - as.numeric(data_CP[, dim(data_CP)[2]]))
@@ -176,17 +200,38 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
     }
     colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- Names
   }
-  data_diff_mean_k <- data_diff_mean_k[order(data_diff_mean_k$k), ]
-  custom.col <- c( "#F4EDCA","#D16103", "#C4961A",'#B03A2E', "#C3D7A4", "#52854C", "#4E84C4", '#1ABC9C',"#293352", '#6C3483', '#626567', "#17202A") #"#FFDB6D",  
-  p1 <- ggplot()
-  for (i in 2:dim(data_diff_mean_k)[2]){
-    print(i)
-    c_df <- data.frame('k'= data_diff_mean_k[,1], 'val'=data_diff_mean_k[ ,i] )
-    #colnames(c_df)[2] <- colnames(data_diff_mean_k)[i]
-    p1 <- p1 + geom_line(data =  c_df  , aes(y =val  , x = k ), colour=custom.col[i] )
+  
+  data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
+  for (i in 3:(dim(data_diff_mean_k)[2]-1)){
+    c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
+    data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
   }
-  print(p1)
-  #return(data_diff_mean_k)
+  theme_set(theme_bw())
+  p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
+    scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
+  p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
+                 y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                   plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                   plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                   axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                   axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                   axis.text.x=element_text(size=12),  # X axis text
+                   axis.text.y=element_text(size=12))  # Y axis text
+  print(p)
+  #data_diff_mean_k <- data_diff_mean_k[order(data_diff_mean_k$k), ]
+  #p1 <- ggplot()
+  #c = 0
+  #for (i in 2:dim(data_diff_mean_k)[2]){
+  #  c_df <- data.frame('k'= data_diff_mean_k[,1], 'val'=data_diff_mean_k[ ,i] )
+  #  p1 <- p1 + geom_line(data =  c_df  , aes(y =val  , x = k ), colour=custom.col[i] ) #+ scale_fill_manual(values=custom.col[1:c], 
+                                                                                                            # name="Methods",                                                                                                          #breaks=c("ctrl", "trt1", "trt2"),
+                                                                                                             #labels=Names)
+  #  c = c + 1
+ # }
+  #p1 <- p1 + scale_fill_manual(values=custom.col[1:c], 
+                     # name="Methods",
+                     # breaks=c("ctrl", "trt1", "trt2"),
+                      ##  print(p1)
 }  
 
 
@@ -261,6 +306,26 @@ CP_R_UMAP_NN20 <- read.table("CP_meso_UMAP_NN20_real_v2.txt", sep = "\t", dec=".
 CP_R_UMAP_MD09 <- read.table("CP_meso_UMAP_MD09_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
 CP_R_UMAP_MD02 <- read.table("CP_meso_UMAP_MD02_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
 
+
+
+cols <- function(a) image(1:11, 1, as.matrix(1:11), col=custom.col, axes=FALSE , xlab="", ylab="")
+a <- 1:11
+cols(11)
+
+
+mypalette<-brewer.pal(7,"set3") 
+display.brewer.all(type="div")
+display.brewer.pal(8, "Dark2")
+display.brewer.pal(12, "Paired")
+brewer.pal(n = 12, name = "Paired")
+
+
+
+
+
+for (i in 1:length(custom.col)){
+  plot(CP_R_UMAP_NN230$CP2 , col = custom.col[i])
+}
 
 
 LDATA <- list( UMAP_coords_NN230, PCA_coords_df, TM_coords_df)
