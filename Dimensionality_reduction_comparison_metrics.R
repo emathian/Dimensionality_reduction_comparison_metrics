@@ -133,7 +133,7 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
     print("Warning :  Input data frames don't the same number of lines a inner join will be done. ")
     df_to_write <- data.frame("Sample_ID"=list_CP[[1]]$Sample_ID, 'K'= list_CP[[1]]$K, 'V1'= list_CP[[1]]$CP)
     for (i in 2:length(list_CP)){
-      df_to_write <- merge(df_to_write, list_CP[[i]],  by=c('Sample_ID','K'))
+      df_to_write <- merge(df_to_write, list_CP[[i]],  by=c('Sample_ID'))
       colnames(df_to_write)[dim(df_to_write)[2]] <- paste('V', i, sep="")
     }  
   }
@@ -295,7 +295,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
   print(p)
 }  
 
-CP_permutations_test <- function(data, list_K ,n = 500 , graph = TRUE){
+CP_calcul <- function(data, list_K, parallel = TRUE ){
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
@@ -329,17 +329,199 @@ CP_permutations_test <- function(data, list_K ,n = 500 , graph = TRUE){
     }
     CP
   }
-#  CP_Mean_by_k_alea <- data.frame('k'= list_k)
-#  CP_Mean_by_k_alea <- foreach(i=1:n,.combine=cbind) %dopar% {
-#    
-#  }
   
+  stopCluster(cl)
+  return(CP_data)
 }
 
-CP_permutations_test(PCA_coords_df, c(10,30,50))
 
 
 
+CP_permutation_test <- function(data, data_ref, list_K, n=50, graph = TRUE){
+  if (n > 50){
+    print("Warning : the calcul could be long !")
+  }
+  colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID' 
+  if (dim(data)[1] != dim(data_ref)[1]){
+    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")  
+    data_m <- merge(data, data_ref, by=c('Sample_ID'))
+    data <- data_m[, 1:dim(data)[2]]
+    data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
+    data_ref <- cbind(data_m[, 1], data_ref)
+  }
+  else if( dim(data)[1] == dim(data_ref)[1] & sum(as.character(data[, 1]) == as.character(data_ref[, 1])) != length(data_ref[, 1])){
+    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.") 
+    data_m <- merge(data, data_ref, by=c('Sample_ID'))
+    data <- data_m[, 1:dim(data)[2]]
+    data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
+    data_ref <- cbind(data_m[, 1], data_ref)
+   
+  }
+  
+  CP_data <- CP_calcul(data, list_K)
+  CP_ref <- CP_calcul(data_ref, list_K)
+  abs_diff <- abs(CP_data$CP - CP_ref$CP)
+  abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+  abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+  main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
+ 
+  for (i in 1:n){
+    print(i)
+    data_shuffle <- data[,2:dim(data)[2]]
+    data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
+    data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
+    data_shuffle <- cbind(data[,1], data_shuffle, row.names = NULL)
+    colnames(data_shuffle)[1] <- "Sample_ID"
+    CP_data_A <- CP_calcul(data_shuffle, list_K)
+    abs_diff <- abs(CP_data_A$CP - CP_ref$CP)
+    abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+    abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+    main_diff_df <- cbind(main_diff_df , abs_diff_k)
+  }
+  print(dim(main_diff_df))
+  theme_set(theme_bw())
+  p <- ggplot()
+  for (i in 3:dim(main_diff_df)[2]){
+    print(i)
+    c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,i])
+    p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')
+    
+  }
+  c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
+  p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
+  print(p)
+  
+  by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
+  Means_alea <- rowMeans(by_k_alea)
+  print(Means_alea)
+  WT  = wilcox.test( Means_alea,main_diff_df[ ,1])
+  print(WT)
+  return(WT)
+}
+
+CP_map <- function(data_CP, data_coords, listK, Title = NULL){
+  # MERGE Data et Data_coords
+  colnames(data_CP) <- c("Sample_ID", "CP", "K")
+  colnames(data_coords) <- c("Sample_ID","x", "y")
+  data_CP$CP <- as.numeric(data_CP$CP)
+  L_unique_K <- unique(data_CP$K)
+  while (length(listK)!=0){ 
+    if (listK[1] %in% L_unique_K){
+      CP_k1st = data_CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1])),]
+      CP_k1st_tm <- merge(CP_k1st, Coords_df ,by="Sample_ID" )
+      colnames(CP_k1st_tm)[2] = "CP"
+      Title1 = as.character(paste("k = ", as.character(listK[1])))
+      p1_seq<- plot_ly(CP_k1st_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+                       marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
+        layout(annotations=  list(x = 0.2 , y = 1.05, text = Title1, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
+      if( (length(listK)-1) < 1 ){
+        if (is.null(Title) == FALSE){
+          mytitle <- Title
+        }
+        else{
+          mytitle <- "Centrality preservation"
+        }
+        p_seq <- subplot(p1_seq)%>%
+        layout(title = mytitle,  margin = 0.04)
+        print(p_seq)
+        break
+      }
+      else{
+      CP_k2nd = data_CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2])),]
+      CP_k2nd_tm <- merge(CP_k2nd, Coords_df ,by="sample" )
+      colnames(CP_k2nd_tm)[2] = "CP"
+      Title2 = as.character(paste("k = ", as.character(listK[2])))
+      p2_seq<- plot_ly(CP_k2nd_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+                       marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
+        layout(annotations=  list(x = 0.2 , y = 1.05, text = Title2, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
+      }
+      if( (length(listK)-2) < 1 ){
+        if (is.null(Title) == FALSE){
+          mytitle <- Title
+        }
+        else{
+          mytitle <- "Centrality preservation"
+        }
+        p_seq <- subplot(p1_seq, p2_seq)%>%
+        layout(title = mytitle,  margin = 0.04)
+        print(p_seq)
+        break
+      }
+      else{
+        CP_k3rd = data_CP[min(which(data_CP$K == listK[3])):max(which(data_CP$K == listK[3])),]
+        CP_k3rd_tm <- merge(CP_k3rd, Coords_df ,by="sample" )
+        colnames(CP_k3rd_tm)[2] = "CP"
+        Title3 = as.character(paste("k = ", as.character(ku_stack[3])))
+        p3_seq<- plot_ly(CP_k3rd_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+                       marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
+        layout(annotations=  list(x = 0.2 , y = 1.05, text = Title3, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
+      }
+      if( (length(listK)-3) < 1 ){
+        if (is.null(Title) == FALSE){
+          mytitle <- Title
+        }
+        else{
+          mytitle <- "Centrality preservation"
+        }
+        p_seq <- subplot(p1_seq, p2_seq, p3_seq)%>%
+        layout(title = mytitle,  margin = 0.04)
+        print(p_seq)
+        break
+      }
+      else{
+        CP_k4th = data_CP[min(which(data_CP$K == listK[4])):max(which(data_CP$K == listK[4])),]
+        CP_k4th_tm <- merge(CP_k4th, Coords_df ,by="sample" )
+        colnames(CP_k4th_tm)[2] = "CP"
+        Title4 = as.character(paste("k = ", as.character(listK[4])))
+        p4_seq<- plot_ly(CP_k4th_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+                       marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
+        layout(annotations=  list(x = 0.2 , y = 1.05, text = Title4, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE)
+        if (is.null(Title) == FALSE){
+          mytitle <- Title
+        }
+        else{
+          mytitle <- "Centrality preservation"
+        }
+        p_seq <- subplot(p1_seq, p2_seq, p3_seq, p4_seq)%>%
+          layout(title = mytitle,  margin = 0.04)
+      print(p_seq)
+      
+      listK <- listK[-c(1:4)]
+      
+      }
+    }
+    else{
+      print( paste("Warning : CP values for this K level (", listK[1],") was not computed."))
+      if (length(listK) == 1){
+        listK <- list()
+      }
+      else{
+        listK <- listK[2:length(listK)]
+      }
+    }
+  }
+}
+
+
+R_meso_df = read.table("feature_data_with_lv_2.tsv", sep="\t", header = T)
+R_meso_df = t(R_meso_df)
+colnames(R_meso_df) <- R_meso_df[1, ]
+R_meso_df = R_meso_df[-1, ]
+R_meso_df = cbind(rownames(R_meso_df), R_meso_df)
+colnames(R_meso_df)[1] <- "Sample_ID"
+rownames(R_meso_df) <- NULL
+
+
+CP_permutation_test(PCA_coords_df, R_meso_df, seq(from = 1, to = 280, by = 10), n=3 )
+
+
+CP_PCA <- CP_calcul(PCA_coords_df,  seq(from = 1, to = 280, by = 10))
+CP_R <- CP_calcul(R_meso_df,  seq(from = 1, to = 280, by = 10))
+abs_pca_r <- abs(as.numeric(CP_PCA$CP) - as.numeric(CP_R$CP))
+df_abs_by_k <- data.frame('k'= CP_PCA$K , "abs" = abs_pca_r )
+abs_by_k <- tapply(df_abs_by_k$abs , df_abs_by_k$k , mean)
+df_abs_by_k <- data.frame('k'= unique(CP_PCA$K) , "abs" = abs_by_k )
+plot(df_abs_by_k$k, df_abs_by_k$abs)
 
 
 
