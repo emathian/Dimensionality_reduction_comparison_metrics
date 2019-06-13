@@ -27,17 +27,7 @@ cols(23)
 
 
 
-CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL){
-  # This function calculs the centrality preservation values, according
-  # a list of K values. The typical uses should be the calcul of CP values
-  # on the low dimendional space, according data1, and their determination 
-  # in the high dimensional space, data2. Results could be written in a 
-  # text file.
-  # Arguments : data1 and data2 must be arrays of floats and rownames may
-  # contain samples' ID. Example:
-  # data 1 :  Sample_ID | x | y | ...
-  # Furthermore according the previous remark if data2 is defined, it must
-  # contain the same number of samples, i.e. the same number of lines.
+CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
   
   # __________ Clusters initialization ______
   no_cores <- detectCores() # - 1
@@ -56,7 +46,7 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
     l_dist[[i]] = dist
   }
   if (is.null(dataRef) == FALSE){
-    distRef <- as.matrix(dist(c_data[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+    distRef <- as.matrix(dist(dataRef[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
     rownames(distRef) <- as.character(dataRef[ ,1])
     colnames(distRef) <- as.character(dataRef[ ,1]) 
   }
@@ -149,9 +139,8 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
   }
   
   if (is.null(colnames_res_df) == FALSE){ 
-    print('here')
     if (is.null(dataRef) == FALSE){
-      colnames_res_df <- c(colnames_res_df, 'REF_CP')
+      colnames_res_df <- c(colnames_res_df, 'REF')
      }
     colnames(df_to_write)[3:length(colnames(df_to_write))] <- colnames_res_df
   }
@@ -167,8 +156,48 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
     }
     write.table(df_to_write, file = filename, sep = "\t")
   }
-
-  return(df_to_write)
+  if (graphics == FALSE & stats == FALSE){
+    cp_df <- df_to_write
+    return(cp_df)  
+  }
+  else{
+    data_CP <- df_to_write
+    data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
+    for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
+      abs_diff <- abs(as.numeric(data_CP[, I]) - as.numeric(data_CP[, dim(data_CP)[2]]))
+      c_abs_diff_df <- data.frame("abs_diff" = abs_diff, 'K' = data_CP$K)
+      abs_diff_k <- tapply(c_abs_diff_df$abs_diff, c_abs_diff_df$K, mean)
+      data_diff_mean_k <- cbind(data_diff_mean_k, abs_diff_k)
+    }
+    colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- colnames(data_CP)[3:(dim(data_CP)[2]-1)]
+   
+     if (graphics == TRUE){
+      data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
+      for (i in 3:(dim(data_diff_mean_k)[2])){
+        c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
+        data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
+      }
+      theme_set(theme_bw())
+      p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
+        scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
+      p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
+                     y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                                                             plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                                                             plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                                                             axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                                                             axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                                                             axis.text.x=element_text(size=12),  # X axis text
+                                                             axis.text.y=element_text(size=12))  # Y axis text
+      print(p)
+     }
+  }
+  if (graphics == TRUE & stats == FALSE){
+    cp_df <- df_to_write
+    return (list(cp_df, p))
+  }
+  else{
+    data_diff_mean_k
+  }
 }
 
 
@@ -218,21 +247,31 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
                    axis.text.x=element_text(size=12),  # X axis text
                    axis.text.y=element_text(size=12))  # Y axis text
   print(p)
-  #data_diff_mean_k <- data_diff_mean_k[order(data_diff_mean_k$k), ]
-  #p1 <- ggplot()
-  #c = 0
-  #for (i in 2:dim(data_diff_mean_k)[2]){
-  #  c_df <- data.frame('k'= data_diff_mean_k[,1], 'val'=data_diff_mean_k[ ,i] )
-  #  p1 <- p1 + geom_line(data =  c_df  , aes(y =val  , x = k ), colour=custom.col[i] ) #+ scale_fill_manual(values=custom.col[1:c], 
-                                                                                                            # name="Methods",                                                                                                          #breaks=c("ctrl", "trt1", "trt2"),
-                                                                                                             #labels=Names)
-  #  c = c + 1
- # }
-  #p1 <- p1 + scale_fill_manual(values=custom.col[1:c], 
-                     # name="Methods",
-                     # breaks=c("ctrl", "trt1", "trt2"),
-                      ##  print(p1)
 }  
+
+PCA_coords_df = read.table("Meso_pca_coords.tab", sep="\t",header = T)
+TM_coords_df= read.table("Meso_tm_coords_v2.tab", sep="\t", header = T)
+UMAP_coords_NN230 <- read.table( "umap_coords_nn230.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
+R_meso_df = read.table("feature_data_with_lv_2.tsv", sep="\t", header = T)
+R_meso_df = t(R_meso_df)
+colnames(R_meso_df) <- R_meso_df[1, ]
+R_meso_df = R_meso_df[-1, ]
+R_meso_df = cbind(rownames(R_meso_df), R_meso_df)
+colnames(R_meso_df)[1] <- "Sample_ID"
+rownames(R_meso_df) <- NULL
+
+L = CP(list( UMAP_coords_NN230[1:100,], PCA_coords_df, TM_coords_df) , c(20,50,49), R_meso_df, c("a","b","c") ,"aname", TRUE , FALSE)
+
+
+
+
+
+
+
+
+
+
+
 
 
 list_CP_df = list( CP_R_PCA, CP_R_TM ,CP_R_UMAP_MD02)#, CP_R_UMAP_NN150_MD05 , CP_R_UMAP_NN230 , CP_R_UMAP_NN20 , CP_R_UMAP_MD09, CP_PCA_TM ,
@@ -246,39 +285,12 @@ data_CP <- data.frame("Sample_ID" = CP_R_TM$sample, 'K' = CP_R_TM$K, "PCA" = CP_
 ref_CP_data <- data.frame("Sample_ID" = CP_R_PCA$sample , "K" = CP_R_PCA$K, 'Real' = CP_R_PCA$CPN)
 CP_graph_by_k(data_CP,  ref_CP_data, Names=c("PCA_Ref", 'TM_ref', 'Umap_ref'), list_col=NULL)
 
-  #par(mfrow=c(1,2))
-  c= 1 
-  c_data_frame = as.data.frame(list_data_CP[[1]])
-  CP_diff_mean_df = data.frame("k" =unique(c_data_frame$K ))
-  for (i in 1:length(list_data_CP)){
-    c_data_frame = as.data.frame(list_data_CP[i])
-    diff_CP2_CPN = abs(c_data_frame$CP2 - c_data_frame$CPN )
-    c_data_frame = cbind(c_data_frame ,diff_CP2_CPN )
-    colnames(c_data_frame)[dim(c_data_frame)[2]] <- "Abs_diff"
-    Mean_by_k =tapply(c_data_frame$Abs_diff ,c_data_frame$K, mean)
-    print( Mean_by_k)
-    CP_diff_mean_df <- cbind(CP_diff_mean_df, Mean_by_k)
-    colnames(CP_diff_mean_df)[dim(CP_diff_mean_df)[2]] <- Name[i]
-  }
-  #print(CP_diff_mean_df)
-
-    p1 <- ggplot() 
-    for (i in 2:dim(CP_diff_mean_df)[2]){
-      print(i)
-        c_df <- data.frame('k'= CP_diff_mean_df[,1], 'diff_cp'= CP_diff_mean_df[,i])
-        p1 <- p1 + geom_line(data = c_df, aes(y = diff_cp, x = k))
-    }
-    print(p1)
-   # p1 <- p1 + geom_line(aes(y = CP_diff_mean_df[,3], x = CP_diff_mean_df$k), colour = 'blue')
-  
-#  return(p1)
 
 
 
 
 
 
-L = CP(list( UMAP_coords_NN230[1:120, ], PCA_coords_df, TM_coords_df) , c(20,50,49), TM_coords_df, c("a","b","c") ,"aname")
 
 TM_coords  <- read.table("Meso_tm_coords_v2.tab", sep = "\t", dec="." , header = TRUE,   quote="")
 colnames(TM_coords)[1] <- "sample"
@@ -332,9 +344,6 @@ LDATA <- list( UMAP_coords_NN230, PCA_coords_df, TM_coords_df)
 #def centrality_preservation(dist1 , dist2 , K , filename):
   
 
-PCA_coords_df = read.table("Meso_pca_coords.tab", sep="\t",header = T)
-TM_coords_df= read.table("Meso_tm_coords_v2.tab", sep="\t", header = T)
-UMAP_coords_NN230 <- read.table( "umap_coords_nn230.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
 
 CP(PCA_coords_df , c(3,5), TM_coords_df, FALSE)
 
