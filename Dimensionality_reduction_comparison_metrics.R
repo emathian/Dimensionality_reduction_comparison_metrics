@@ -160,7 +160,7 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
     cp_df <- df_to_write
     return(cp_df)  
   }
-  else{
+  else if (is.null(dataRef) == FALSE){
     data_CP <- df_to_write
     data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
     for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
@@ -190,13 +190,59 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
                                                              axis.text.y=element_text(size=12))  # Y axis text
       print(p)
      }
-  }
+  
   if (graphics == TRUE & stats == FALSE){
     cp_df <- df_to_write
-    return (list(cp_df, p))
+    return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k ,"Graphic" = p))
   }
   else{
-    data_diff_mean_k
+    cp_df <- df_to_write
+    # Cheeck if there if more than two ech
+    if (dim(data_diff_mean_k)[2] == 3){
+      WT =wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[ ,3])
+      print(WT)
+    }    
+    # Kruskal test
+    else{
+      ks_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, 2], 'method'= rep(colnames(data_diff_mean_k)[2], dim(data_diff_mean_k)[1]))
+   
+      for (i in 3:dim(data_diff_mean_k)[2]){
+        c_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, i], 'method'=rep(colnames(data_diff_mean_k)[i], dim(data_diff_mean_k)[1]))
+        ks_df <- rbind(ks_df, c_df ) 
+        KST = kruskal.test(mean_diff_cp ~ method, data = ks_df)
+        print(KST)
+      }
+      paired_test_m <- matrix(nrow = (dim(data_diff_mean_k)[2]-1) , ncol = (dim(data_diff_mean_k)[2]-1))
+      for (i in 2:dim(data_diff_mean_k)[2]){
+        for (j in 2:dim(data_diff_mean_k)[2]){
+          if (j < i){
+            c_WT <- wilcox.test(data_diff_mean_k[,i], data_diff_mean_k[,j])
+            paired_test_m[(i-1),(j-1)] <- c_WT$p.value
+          }
+        }
+      }
+      colnames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
+      rownames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
+      paired_test_m[is.na(paired_test_m)]   <- '-' 
+      print(paired_test_m)
+    }
+    if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
+      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT))
+    }
+    else if (graphics == TRUE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
+      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT, 'Graphic' = p))
+    }
+    else if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] != 3){
+      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Kruskal_test' = KST, 'Paired_wilocoxon_test' = paired_test_m ))
+    }
+    else{
+      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Kruskal_test' = KST, 'Paired_wilocoxon_test' = paired_test_m , 'Graphic' = p))
+    }
+  }
+  }
+  else{
+    print("Warning:  Neither graphics nor sattistics could be compute if any reference data frame is defined ")
+    return(cp_df) 
   }
 }
 
@@ -260,112 +306,8 @@ R_meso_df = cbind(rownames(R_meso_df), R_meso_df)
 colnames(R_meso_df)[1] <- "Sample_ID"
 rownames(R_meso_df) <- NULL
 
-L = CP(list( UMAP_coords_NN230[1:100,], PCA_coords_df, TM_coords_df) , c(20,50,49), R_meso_df, c("a","b","c") ,"aname", TRUE , FALSE)
+L = CP(list( UMAP_coords_NN230[1:100,], PCA_coords_df, TM_coords_df) , c(20,50,49), R_meso_df, c("a","b","c") ,"aname", TRUE , TRUE)
 
 
 
 
-
-
-
-
-
-
-
-
-
-list_CP_df = list( CP_R_PCA, CP_R_TM ,CP_R_UMAP_MD02)#, CP_R_UMAP_NN150_MD05 , CP_R_UMAP_NN230 , CP_R_UMAP_NN20 , CP_R_UMAP_MD09, CP_PCA_TM ,
-Name = c("CP_R_PCA" , "CP_R_TM" ,"CP_R_UMAP_MD02")#, "CP_R_UMAP_NN150_MD05", "CP_R_UMAP_NN230" , "CP_R_UMAP_NN20" , "CP_R_UMAP_MD09", "CP_PCA_TM" 
-CP_graph_by_k(list_CP_df,Name)
-
-
-data_CP <- data.frame("Sample_ID" = CP_R_TM$sample, 'K' = CP_R_TM$K, "PCA" = CP_R_PCA$CP2, 'TM' = CP_R_TM$CP2,
-                      'UMAP' = CP_R_UMAP_MD02$CP2, 'UMAP_NN230'= CP_R_UMAP_NN230$CP2, 'CP_R_UMAP_NN20'=CP_R_UMAP_NN20$CP2,
-                      'CP_R_UMAP_MD09'= CP_R_UMAP_MD09$CP2, 'CP_R_UMAP_MD02'=CP_R_UMAP_MD02$CP2)
-ref_CP_data <- data.frame("Sample_ID" = CP_R_PCA$sample , "K" = CP_R_PCA$K, 'Real' = CP_R_PCA$CPN)
-CP_graph_by_k(data_CP,  ref_CP_data, Names=c("PCA_Ref", 'TM_ref', 'Umap_ref'), list_col=NULL)
-
-
-
-
-
-
-
-
-TM_coords  <- read.table("Meso_tm_coords_v2.tab", sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(TM_coords)[1] <- "sample"
-PCA_coords  <- read.table("Meso_pca_coords.tab", sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(PCA_coords)[1] <- "sample"
-UMAP_coords_NN230 <- read.table( "umap_coords_nn230.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(UMAP_coords_NN230)[1]<- "sample"
-UMAP_coords_NN20 <-  read.table( "umap_coords_nn20.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(UMAP_coords_NN20)[1]<- "sample"
-UMAP_coords_MD09 <-  read.table( "umap_coords_md09.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(UMAP_coords_MD09)[1]<- "sample"
-UMAP_coords_MD02 <-  read.table( "umap_coord_md_02.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(UMAP_coords_MD02 )[1]<- "sample"
-UMAP_coords_NN150_MD05 <- read.table( "umap_coords_nn150_md05.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
-colnames(UMAP_coords_NN150_MD05 )[1]<- "sample"
-
-CP_PCA_TM <- read.table("CP_PCA_TM_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")  # HERE
-CP_R_PCA <- read.table("CP_PCA_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-CP_R_TM <- read.table("CP_meso_TM_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-#CP_R_UMAP_NN150_MD05_nearly_all <- read.table("CP_meso_UMAP_NN150_MD05_real_nearly_all_k.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-#CP_R_UMAP_NN150_MD05_Next <- read.table("CP_meso_UMAP_NN150_MD05_real_Next.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-#P_R_UMAP_NN150_MD05 <- CP_R_UMAP_NN150_MD05[CP_R_UMAP_NN150_MD05$K %in% unique(CP_R_TM$K) ,  ]
-CP_R_UMAP_NN230 <- read.table("CP_meso_UMAP_NN230_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-CP_R_UMAP_NN20 <- read.table("CP_meso_UMAP_NN20_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-CP_R_UMAP_MD09 <- read.table("CP_meso_UMAP_MD09_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-CP_R_UMAP_MD02 <- read.table("CP_meso_UMAP_MD02_real_v2.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-
-
-
-cols <- function(a) image(1:11, 1, as.matrix(1:11), col=custom.col, axes=FALSE , xlab="", ylab="")
-a <- 1:11
-cols(11)
-
-
-mypalette<-brewer.pal(7,"set3") 
-display.brewer.all(type="div")
-display.brewer.pal(8, "Dark2")
-display.brewer.pal(12, "Paired")
-brewer.pal(n = 12, name = "Paired")
-
-
-
-
-
-for (i in 1:length(custom.col)){
-  plot(CP_R_UMAP_NN230$CP2 , col = custom.col[i])
-}
-
-
-LDATA <- list( UMAP_coords_NN230, PCA_coords_df, TM_coords_df)
-#def centrality_preservation(dist1 , dist2 , K , filename):
-  
-
-
-CP(PCA_coords_df , c(3,5), TM_coords_df, FALSE)
-
-
-Dist <- dist(PCA_coords_df[, 2:3], method = "euclidian", diag = TRUE, upper = TRUE) ; Dist#
-m <- as.matrix(Dist) ;  m
-rownames(m) <- as.character(PCA_coords_df[ ,1])
-colnames(m) <- as.character(PCA_coords_df[ ,1])  
-m
-
-
-CP_R_MOFA_expr<- read.table("CP_pulmo_R_MOFA.txt", sep = "\t", dec="." , header = TRUE,   quote="")
-plot(CP_R_MOFA_expr$CP2)
-hist(CP_R_MOFA_expr$CP2)
-
-x <- matrix(rnorm(100), nrow = 5)
-dist(x)
-dist(x, diag = TRUE)
-dist(x, upper = TRUE)
-m <- as.matrix(dist(x))
-
-
-
-
-d <- as.dist(m)
