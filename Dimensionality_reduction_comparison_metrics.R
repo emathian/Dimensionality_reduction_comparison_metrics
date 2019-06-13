@@ -295,6 +295,55 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
   print(p)
 }  
 
+CP_permutations_test <- function(data, list_K ,n = 500 , graph = TRUE){
+  no_cores <- detectCores() # - 1
+  cl <- makeCluster(no_cores)
+  registerDoParallel(cl)
+  
+  dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+  rownames(dist) <- as.character(data[ ,1])
+  colnames(dist) <- as.character(data[ ,1]) 
+
+  CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
+    k = list_K[i]
+    CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1])))
+    N <- matrix(ncol = k, nrow = dim(data)[1])
+    rownames(N) <- data[, 1] ; colnames(N) <- seq(k)
+    for (j in 1:dim(dist)[1]){
+      N_dist <- list(dist[i, ])[[1]]
+      names(N_dist) <- data[ ,1]
+      N_dist <- sort(N_dist)
+      KNeighbors_N <- as.character(names(N_dist)[1:k])
+      N[j,] <- KNeighbors_N
+    }
+    for (l in 1:dim(N)[1]){
+      c_point <- rownames(N)[l]
+      CP_j <- 0
+      for(j in 1:dim(N)[1]){
+        neighbors_j <- list(N[l, ])[[1]]
+        if (c_point %in% neighbors_j ){
+          CP_j = CP_j + (k - match(c_point,neighbors_j))
+        }
+      }
+      CP[l,2] =  CP_j
+    }
+    CP
+  }
+#  CP_Mean_by_k_alea <- data.frame('k'= list_k)
+#  CP_Mean_by_k_alea <- foreach(i=1:n,.combine=cbind) %dopar% {
+#    
+#  }
+  
+}
+
+CP_permutations_test(PCA_coords_df, c(10,30,50))
+
+
+
+
+
+
+
 PCA_coords_df = read.table("Meso_pca_coords.tab", sep="\t",header = T)
 TM_coords_df= read.table("Meso_tm_coords_v2.tab", sep="\t", header = T)
 UMAP_coords_NN230 <- read.table( "umap_coords_nn230.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
