@@ -2,6 +2,7 @@ library(foreach)
 library(doParallel)
 library(ggplot2)
 library(RColorBrewer)
+library(plotly)
 
 # My colors : 
 # -----------
@@ -27,8 +28,11 @@ cols(23)
 
 
 
-CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
-  
+CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
+  if (length(l_data) == 1 & graphics == TRUE | stats == TRUE){
+    print("Warning : Statistical option are not available if `l_data` length is equal to 1.")
+    stats =  FALSE
+  }
   # __________ Clusters initialization ______
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
@@ -122,6 +126,7 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
   
   stopCluster(cl)
   
+  # __________________ Writing option and CP Data Frame __________
   if (length(unique(len_list_CP))==1){
     df_to_write <- data.frame('Sample_ID' = list_CP[[1]]$Sample_ID, 'K' = list_CP[[1]]$K )
     for (i in 1:length(list_CP)){
@@ -137,7 +142,6 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
       colnames(df_to_write)[dim(df_to_write)[2]] <- paste('V', i, sep="")
     }  
   }
-  
   if (is.null(colnames_res_df) == FALSE){ 
     if (is.null(dataRef) == FALSE){
       colnames_res_df <- c(colnames_res_df, 'REF')
@@ -156,11 +160,17 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
     }
     write.table(df_to_write, file = filename, sep = "\t")
   }
-  if (graphics == FALSE & stats == FALSE){
-    cp_df <- df_to_write
-    return(cp_df)  
+  # ____________________________________________________
+  
+  
+  # ___________________  NO Stats, NO graphic, NO Ref _____
+  if ( is.null(dataRef) == TRUE){
+    if (graphics == TRUE | stats == TRUE ){
+      print("Warning:  Neither graphics nor sattistics could be computed if any reference data frame is defined ")
+    }
+    return(list("CP_Data_frame" = cp_df))
   }
-  else if (is.null(dataRef) == FALSE){
+  else{ # (is.null(dataRef) == FALSE)
     data_CP <- df_to_write
     data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
     for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
@@ -170,79 +180,84 @@ CP <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filen
       data_diff_mean_k <- cbind(data_diff_mean_k, abs_diff_k)
     }
     colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- colnames(data_CP)[3:(dim(data_CP)[2]-1)]
-   
-     if (graphics == TRUE){
+    if (graphics == FALSE & stats == FALSE){
+      return(list("CP_Data_frame" = data_CP,'CP_Diff_mean_by_K' = data_diff_mean_k))  
+    }
+    if (graphics == TRUE){ 
       data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
-      for (i in 3:(dim(data_diff_mean_k)[2])){
-        c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
-        data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
-      }
+      if (dim(data_diff_mean_k)[2] > 2){
+        for (i in 3:(dim(data_diff_mean_k)[2])){
+          c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
+          data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
+        }
+      }  
       theme_set(theme_bw())
       p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
-        scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
+          scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
       p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
-                     y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+           y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                              plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                              plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
                                                              axis.title.x=element_text(size=12, face="bold"),  # X axis title
                                                              axis.title.y=element_text(size=12, face="bold"),  # Y axis title
                                                              axis.text.x=element_text(size=12),  # X axis text
                                                              axis.text.y=element_text(size=12))  # Y axis text
+    
       print(p)
-     }
-  
-  if (graphics == TRUE & stats == FALSE){
-    cp_df <- df_to_write
-    return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k ,"Graphic" = p))
-  }
-  else{
-    cp_df <- df_to_write
-    # Cheeck if there if more than two ech
-    if (dim(data_diff_mean_k)[2] == 3){
-      WT =wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[ ,3])
-      print(WT)
-    }    
-    # Kruskal test
-    else{
-      ks_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, 2], 'method'= rep(colnames(data_diff_mean_k)[2], dim(data_diff_mean_k)[1]))
-   
-      for (i in 3:dim(data_diff_mean_k)[2]){
-        c_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, i], 'method'=rep(colnames(data_diff_mean_k)[i], dim(data_diff_mean_k)[1]))
-        ks_df <- rbind(ks_df, c_df ) 
-        KST = kruskal.test(mean_diff_cp ~ method, data = ks_df)
-        print(KST)
+      if (dim(data_diff_mean_k)[2] == 2){ # Only one method was define
+        if (stats == TRUE){
+          print('Warning : Statistics cannot be compute if only one method was given as input e.g `l_data` contains only one element.')
+        }
+        return(list("CP_Data_frame" =  data_CP,'CP_Diff_mean_by_K' = data_diff_mean_k, "Graphic" = p))
       }
-      paired_test_m <- matrix(nrow = (dim(data_diff_mean_k)[2]-1) , ncol = (dim(data_diff_mean_k)[2]-1))
-      for (i in 2:dim(data_diff_mean_k)[2]){
-        for (j in 2:dim(data_diff_mean_k)[2]){
-          if (j < i){
-            c_WT <- wilcox.test(data_diff_mean_k[,i], data_diff_mean_k[,j])
-            paired_test_m[(i-1),(j-1)] <- c_WT$p.value
+    }
+    if (graphics == TRUE & stats == FALSE){
+      return (list("CP_Data_frame" = data_CP, 'CP_Diff_mean_by_K' = data_diff_mean_k ,"Graphic" = p))
+     }
+    else{
+      cp_df <- df_to_write
+      # Cheeck if there if more than two ech
+      if (dim(data_diff_mean_k)[2] == 3){
+        WT =wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[ ,3])
+        print(WT)
+      }    
+      # Kruskal test
+      else{
+        ks_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, 2], 'method'= rep(colnames(data_diff_mean_k)[2], dim(data_diff_mean_k)[1]))
+   
+        for (i in 3:dim(data_diff_mean_k)[2]){
+          c_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, i], 'method'=rep(colnames(data_diff_mean_k)[i], dim(data_diff_mean_k)[1]))
+          ks_df <- rbind(ks_df, c_df ) 
+          KST = kruskal.test(mean_diff_cp ~ method, data = ks_df)
+          print(KST)
+        }
+        paired_test_m <- matrix(nrow = (dim(data_diff_mean_k)[2]-1) , ncol = (dim(data_diff_mean_k)[2]-1))
+        for (i in 2:dim(data_diff_mean_k)[2]){
+          for (j in 2:dim(data_diff_mean_k)[2]){
+            if (j < i){
+              c_WT <- wilcox.test(data_diff_mean_k[,i], data_diff_mean_k[,j])
+              paired_test_m[(i-1),(j-1)] <- c_WT$p.value
+            }
           }
         }
+        colnames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
+        rownames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
+        paired_test_m[is.na(paired_test_m)]   <- '-' 
+        print(paired_test_m)
       }
-      colnames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
-      rownames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
-      paired_test_m[is.na(paired_test_m)]   <- '-' 
-      print(paired_test_m)
+      if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
+        return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT))
+      }
+      else if (graphics == TRUE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
+        return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT, 'Graphic' = p))
+      }
+      else if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] != 3){
+        return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Kruskal_test' = KST, 'Paired_wilocoxon_test' = paired_test_m ))
+      }
+      else{
+        return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Kruskal_test' = KST, 'Paired_wilocoxon_test' = paired_test_m , 'Graphic' = p))
+      }
     }
-    if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
-      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT))
-    }
-    else if (graphics == TRUE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
-      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT, 'Graphic' = p))
-    }
-    else if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] != 3){
-      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Kruskal_test' = KST, 'Paired_wilocoxon_test' = paired_test_m ))
-    }
-    else{
-      return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Kruskal_test' = KST, 'Paired_wilocoxon_test' = paired_test_m , 'Graphic' = p))
-    }
-  }
-  }
-  else{
-    print("Warning:  Neither graphics nor sattistics could be compute if any reference data frame is defined ")
-    return(cp_df) 
   }
 }
 
@@ -378,7 +393,6 @@ CP_permutation_test <- function(data, data_ref, list_K, n=50, graph = TRUE){
     abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
     main_diff_df <- cbind(main_diff_df , abs_diff_k)
   }
-  print(dim(main_diff_df))
   theme_set(theme_bw())
   p <- ggplot()
   for (i in 3:dim(main_diff_df)[2]){
@@ -401,19 +415,37 @@ CP_permutation_test <- function(data, data_ref, list_K, n=50, graph = TRUE){
 
 CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   # MERGE Data et Data_coords
-  colnames(data_CP) <- c("Sample_ID", "CP", "K")
+  colnames(data_CP) <- c("Sample_ID", "K", "CP")
   colnames(data_coords) <- c("Sample_ID","x", "y")
+  if (length(unique(data_CP$Sample_ID)) != dim(data_coords)[1]){
+    print("Warning : `data_CP` and `data_coords` don't have the same number of line. An inner join will be effected.")
+  }
+  else if (sum(data_CP$Sample_ID == data_coords$Sample_ID) != dim(data_CP)[1]){
+    print("Warning : Sample_IDs in `data_CP` and `data_coords` differ, or are not in the same order. An inner join will be effected.")
+  }
+  
+  data_m <- merge(data_CP, data_coords, by = 'Sample_ID')
+  data_CP <- data_m[, 1:3]
+  data_coords <- data_m[, 4:5]
+  data_coords <- cbind(data_m[, 1],data_coords)
+  colnames(data_coords)[1] <- "Sample_ID"
   data_CP$CP <- as.numeric(data_CP$CP)
+
+  #print(data_CP$CP[min(which(data_CP$K == 21)):max(which(data_CP$K == 21))] == data_CP$CP[min(which(data_CP$K == 1)):max(which(data_CP$K == 1))])
+  
   L_unique_K <- unique(data_CP$K)
+
   while (length(listK)!=0){ 
+    
+  #  print(data_CP$CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1]))] == data_CP$CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2]))]  )
     if (listK[1] %in% L_unique_K){
       CP_k1st = data_CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1])),]
-      CP_k1st_tm <- merge(CP_k1st, Coords_df ,by="Sample_ID" )
-      colnames(CP_k1st_tm)[2] = "CP"
+      CP_k1st_tm <- merge(CP_k1st, data_coords, by="Sample_ID" )
       Title1 = as.character(paste("k = ", as.character(listK[1])))
       p1_seq<- plot_ly(CP_k1st_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
                        marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
         layout(annotations=  list(x = 0.2 , y = 1.05, text = Title1, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
+
       if( (length(listK)-1) < 1 ){
         if (is.null(Title) == FALSE){
           mytitle <- Title
@@ -428,8 +460,8 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
       }
       else{
       CP_k2nd = data_CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2])),]
-      CP_k2nd_tm <- merge(CP_k2nd, Coords_df ,by="sample" )
-      colnames(CP_k2nd_tm)[2] = "CP"
+      CP_k2nd_tm <- merge(CP_k2nd, data_coords ,by="Sample_ID" )
+  
       Title2 = as.character(paste("k = ", as.character(listK[2])))
       p2_seq<- plot_ly(CP_k2nd_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
                        marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
@@ -449,9 +481,8 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
       }
       else{
         CP_k3rd = data_CP[min(which(data_CP$K == listK[3])):max(which(data_CP$K == listK[3])),]
-        CP_k3rd_tm <- merge(CP_k3rd, Coords_df ,by="sample" )
-        colnames(CP_k3rd_tm)[2] = "CP"
-        Title3 = as.character(paste("k = ", as.character(ku_stack[3])))
+        CP_k3rd_tm <- merge(CP_k3rd, data_coords, by="Sample_ID" )
+        Title3 = as.character(paste("k = ", as.character(listK[3])))
         p3_seq<- plot_ly(CP_k3rd_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
                        marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
         layout(annotations=  list(x = 0.2 , y = 1.05, text = Title3, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
@@ -470,8 +501,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
       }
       else{
         CP_k4th = data_CP[min(which(data_CP$K == listK[4])):max(which(data_CP$K == listK[4])),]
-        CP_k4th_tm <- merge(CP_k4th, Coords_df ,by="sample" )
-        colnames(CP_k4th_tm)[2] = "CP"
+        CP_k4th_tm <- merge(CP_k4th, data_coords,by="Sample_ID" )
         Title4 = as.character(paste("k = ", as.character(listK[4])))
         p4_seq<- plot_ly(CP_k4th_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
                        marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
@@ -485,7 +515,6 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         p_seq <- subplot(p1_seq, p2_seq, p3_seq, p4_seq)%>%
           layout(title = mytitle,  margin = 0.04)
       print(p_seq)
-      
       listK <- listK[-c(1:4)]
       
       }
@@ -537,8 +566,12 @@ R_meso_df = cbind(rownames(R_meso_df), R_meso_df)
 colnames(R_meso_df)[1] <- "Sample_ID"
 rownames(R_meso_df) <- NULL
 
-L = CP(list( UMAP_coords_NN230[1:100,], PCA_coords_df, TM_coords_df) , c(20,50,49), R_meso_df, c("a","b","c") ,"aname", TRUE , TRUE)
+L1 = CP_main(list(PCA_coords_df) , seq(from = 1, to = 284, by = 20), R_meso_df, c("PCA") ,"aname", TRUE , TRUE)
 
+L2 = CP_main(list(PCA_coords_df, TM_coords_df) , seq(from = 1, to = 284, by = 20), R_meso_df, c("PCA",'TM') ,"aname", TRUE , TRUE)
 
+CP_PCA = L1[[1]][, 1:3]
 
+TEST = CP_map(data_CP = CP_PCA, data_coords = PCA_coords_df, c(1,21,41,61) , Title = NULL)
 
+CP_PCA$PCA[min(which(CP_PCA$K == 21)):max(which(CP_PCA$K == 21))] == CP_PCA$PCA[min(which(CP_PCA$K == 241)):max(which(CP_PCA$K == 241))]
