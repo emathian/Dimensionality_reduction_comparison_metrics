@@ -575,3 +575,74 @@ CP_PCA = L1[[1]][, 1:3]
 TEST = CP_map(data_CP = CP_PCA, data_coords = PCA_coords_df, c(1,21,41,61) , Title = NULL)
 
 CP_PCA$PCA[min(which(CP_PCA$K == 21)):max(which(CP_PCA$K == 21))] == CP_PCA$PCA[min(which(CP_PCA$K == 241)):max(which(CP_PCA$K == 241))]
+
+
+
+#################  SEQUENCE DIFFERENCE VIEW #########################
+
+
+Seq_calcul <- function(data1, data2, k){
+  colnames(data1)[1] <- 'Sample_ID'  ; colnames(data2)[1] <- 'Sample_ID'
+  if (dim(data1)[1] != dim(data2)[1]){
+    print("Warning : The number of lines between `data1` and `data2` differs. A merge will be effected")
+  }
+  else if (sum(data1[, 1] == data2[, 1]) != length(data1[, 1])){
+    print("Warning : Sample_IDs in `data1` and `data2` are not the same, or are not in the same order. An inner join will be effected.")
+  }
+  data_m <- merge(data1, data2, by = 'Sample_ID')
+  ncol_data1 <- dim(data1)[2]
+  data1 <- data_m[, 1:dim(data1)[2]]
+  data2 <- data_m[, (dim(data1)[2]+1):dim(data_m)[2]]
+  data2 <- cbind(data_m[, 1], data2)
+  colnames(data2)[1] <- 'Sample_ID'
+  #________________ Distances matrices __________
+  dist1 <- as.matrix(dist(data1[, 2:dim(data1)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+  rownames(dist1) <- as.character(data1[ ,1])
+  colnames(dist1) <- as.character(data1[ ,1]) 
+  
+  dist2 <- as.matrix(dist(data2[, 2:dim(data2)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+  rownames(dist2) <- as.character(data2[ ,1])
+  colnames(dist2) <- as.character(data2[ ,1]) 
+  # ____________________________________________
+  
+  print(sum(rownames(dist1) == rownames(dist2)) == length(dist1[,1]))
+  
+  seq_diff_l <- c()
+  n <- dim(dist1)[1]
+  for (i in 1:n){
+    c_point <- rownames(dist1)[i]
+    N1_dist_l <- list(dist1[i, ])[[1]]
+    N2_dist_l <- list(dist2[i, ])[[1]]
+    
+    names(N1_dist_l) <- rownames(dist1)
+    names(N2_dist_l) <- rownames(dist2)
+    N1_dist_l <- sort(N1_dist_l)
+    N2_dist_l <- sort(N2_dist_l)
+
+    N1_rank_l <- seq(length(N1_dist_l))
+    N2_rank_l <- seq(length(N2_dist_l))
+    names(N1_rank_l) <- names(N1_dist_l)
+    names(N2_rank_l) <- names(N2_dist_l)
+    
+    N1_rank_l <- N1_rank_l[1:k]
+    N2_rank_l <- N2_rank_l[1:k]
+    
+    N1_df <- data.frame("Sample_ID" = names(N1_rank_l) , "Rank1" = N1_rank_l)
+    N2_df <- data.frame("Sample_ID" = names(N2_rank_l) , "Rank2" = N2_rank_l)
+    
+    N_df <- merge(N1_df, N2_df, by = 'Sample_ID')
+    #print(head(N_df))
+    s1 = 0
+    s2 = 0
+    for (j in 1:length(N_df[,1])){
+      s1 = s1 + ((k - N_df$Rank1[j]) * abs(N_df$Rank1[j] - N_df$Rank2[j]))
+      print(N_df$Rank1[j])
+      s2 = s2 + ((k - N_df$Rank2[j]) * abs(N_df$Rank1[j] - N_df$Rank2[j]))
+    }
+    S = 0.5 * s1 + 0.5 * s2
+    seq_diff_l <- c(seq_diff_l,  S)
+  }
+  return(seq_diff_l)
+}
+Seq_calcul(PCA_coords_df, TM_coords_df, 10)
+
