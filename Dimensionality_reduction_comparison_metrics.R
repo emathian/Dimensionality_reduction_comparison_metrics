@@ -355,8 +355,8 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
 
 
 
-CP_permutation_test <- function(data, data_ref, list_K, n=50, graph = TRUE){
-  if (n > 50){
+CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
+  if (n > 30){
     print("Warning : the calcul could be long !")
   }
   colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID' 
@@ -584,98 +584,8 @@ CP_PCA$PCA[min(which(CP_PCA$K == 21)):max(which(CP_PCA$K == 21))] == CP_PCA$PCA[
 #################  SEQUENCE DIFFERENCE VIEW #########################
 
 
-Seq_calcul <- function(data1, data2, k){
-  colnames(data1)[1] <- 'Sample_ID'  ; colnames(data2)[1] <- 'Sample_ID'
-  if (dim(data1)[1] != dim(data2)[1]){
-    print("Warning : The number of lines between `data1` and `data2` differs. A merge will be effected")
-  }
-  else if (sum(data1[, 1] == data2[, 1]) != length(data1[, 1])){
-    print("Warning : Sample_IDs in `data1` and `data2` are not the same, or are not in the same order. An inner join will be effected.")
-  }
-  data_m <- merge(data1, data2, by = 'Sample_ID')
-  ncol_data1 <- dim(data1)[2]
-  data1 <- data_m[, 1:dim(data1)[2]]
-  data2 <- data_m[, (dim(data1)[2]+1):dim(data_m)[2]]
-  data2 <- cbind(data_m[, 1], data2)
-  colnames(data2)[1] <- 'Sample_ID'
-  #________________ Distances matrices __________
-  dist1 <- as.matrix(dist(data1[, 2:dim(data1)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
-  rownames(dist1) <- as.character(data1[ ,1])
-  colnames(dist1) <- as.character(data1[ ,1]) 
-  
-  dist2 <- as.matrix(dist(data2[, 2:dim(data2)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
-  rownames(dist2) <- as.character(data2[ ,1])
-  colnames(dist2) <- as.character(data2[ ,1]) 
-  # ____________________________________________
-  
-  #print(sum(rownames(dist1) == rownames(dist2)) == length(dist1[,1]))
-  
-  seq_diff_l <- c()
-  n <- dim(dist1)[1]
-  for (i in 1:n){
-    c_point <- rownames(dist1)[i]
-    N1_dist_l <- list(dist1[i, ])[[1]]
-    N2_dist_l <- list(dist2[i, ])[[1]]
-    
-    names(N1_dist_l) <- rownames(dist1)
-    names(N2_dist_l) <- rownames(dist2)
-    N1_dist_l <- sort(N1_dist_l)
-    N2_dist_l <- sort(N2_dist_l)
+Seq_calcul <- function(l_data, dataRef, listK){
 
-    N1_rank_l <- seq(length(N1_dist_l))
-    N2_rank_l <- seq(length(N2_dist_l))
-    names(N1_rank_l) <- names(N1_dist_l)
-    names(N2_rank_l) <- names(N2_dist_l)
-    
-    N1_rank_l <- N1_rank_l[1:k]
-    N2_rank_l <- N2_rank_l[1:k]
-    
-    N1_df <- data.frame("Sample_ID" = names(N1_rank_l) , "Rank1" = N1_rank_l)
-    N2_df <- data.frame("Sample_ID" = names(N2_rank_l) , "Rank2" = N2_rank_l)
-    
-    N_df <- merge(N1_df, N2_df, by = 'Sample_ID')
-    s1 = 0
-    s2 = 0
-    for (j in 1:length(N_df[,1])){
-      s1 = s1 + ((k - N_df$Rank1[j]) * abs(N_df$Rank1[j] - N_df$Rank2[j]))
-      s2 = s2 + ((k - N_df$Rank2[j]) * abs(N_df$Rank1[j] - N_df$Rank2[j]))
-    }
-    S = 0.5 * s1 + 0.5 * s2
-    seq_diff_l <- c(seq_diff_l,  S)
-  }
-  return(seq_diff_l)
-}
-Seq_calcul(PCA_coords_df, TM_coords_df, 10)
-
-# __
-Merging_function <- function(l_data, dataRef){
-  colnames(dataRef)[1] <- "Sample_ID"
-  res_l_data <- list()
-  for (i in 1:length(l_data)){
-    c_data <- l_data[[i]]
-    colnames(c_data)[1] <- "Sample_ID"
-    if (dim(c_data)[1] != dim(dataRef)[1]){
-      print(paste("Warning : the data frame[" ,  i ,")] doesn't have the same number of lines than `dataRef`. An inner join will be effecte") )
-    }
-    else if(sum(c_data[, 1] == dataRef[, 1]) != length(c_data[, 1])){
-      print(paste("Warning : Sample_IDs in data frame [", i,"] and dataRef are not the same, or are not in the same order. An inner join will be effected.", sep =""))
-    }
-    data_m <- merge(dataRef, c_data, by = "Sample_ID")
-    r_data <- data_m[,(dim(dataRef)[2] + 1):dim(data_m)[2]]
-    r_data <- cbind(data_m[, 1], r_data)
-    colnames(r_data)[1] <- 'Sample_ID' 
-    res_l_data[[i]] <- r_data
-  }
-  return(res_l_data)
-}
-
-Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
-  # Implement a merging system
-  l_data <- Merging_function(l_data, dataRef)
-  if (length(l_data) == 1 & stats == TRUE){
-    print("Warning : Statistical option are not available if `l_data` length is equal to 1.")
-    stats =  FALSE
-  }
   # __________ Clusters initialization ______
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
@@ -684,7 +594,30 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
   global_seq_list <- list()
   for (I in 1:length(l_data)){
     c_data <- l_data[[I]]
-   
+    colnames(c_data)[1] <- 'Sample_ID'  ; colnames(dataRef)[1] <- 'Sample_ID'
+    if (dim(c_data)[1] != dim(dataRef)[1]){
+      print("Warning : The number of lines between `c_data` and `dataRef` differs. A merge will be effected")
+    }
+    else if (sum(c_data[, 1] == dataRef[, 1]) != length(c_data[, 1])){
+      print("Warning : Sample_IDs in `c_data` and `dataRef` are not the same, or are not in the same order. An inner join will be effected.")
+    }
+    data_m <- merge(c_data, dataRef, by = 'Sample_ID')
+    ncol_c_data <- dim(c_data)[2]
+    c_data <- data_m[, 1:dim(c_data)[2]]
+    dataRef <- data_m[, (dim(c_data)[2]+1):dim(data_m)[2]]
+    dataRef <- cbind(data_m[, 1], dataRef)
+    colnames(dataRef)[1] <- 'Sample_ID'
+    
+    #________________ Distances matrices __________
+    dist1 <- as.matrix(dist(c_data[, 2:dim(c_data)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+    rownames(dist1) <- as.character(c_data[ ,1])
+    colnames(dist1) <- as.character(c_data[ ,1]) 
+    
+    dist2 <- as.matrix(dist(dataRef[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+    rownames(dist2) <- as.character(dataRef[ ,1])
+    colnames(dist2) <- as.character(dataRef[ ,1]) 
+    # ____________________________________________
+    
     seq_c_data <- foreach(i=1:length(listK),.combine=rbind) %dopar% {
       k <- listK[i]
       colnames(c_data)[1] <- 'Sample_ID'  ; colnames(dataRef)[1] <- 'Sample_ID'
@@ -751,6 +684,44 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
     }
     global_seq_list[[I]] <- seq_c_data
   }
+  stopCluster(cl)
+
+  return(global_seq_list)
+}
+Seq_calcul(list(PCA_coords_df), TM_coords_df, c(10,20))
+
+# __
+Merging_function <- function(l_data, dataRef){
+  colnames(dataRef)[1] <- "Sample_ID"
+  res_l_data <- list()
+  for (i in 1:length(l_data)){
+    c_data <- l_data[[i]]
+    colnames(c_data)[1] <- "Sample_ID"
+    if (dim(c_data)[1] != dim(dataRef)[1]){
+      print(paste("Warning : the data frame[" ,  i ,")] doesn't have the same number of lines than `dataRef`. An inner join will be effecte") )
+    }
+    else if(sum(c_data[, 1] == dataRef[, 1]) != length(c_data[, 1])){
+      print(paste("Warning : Sample_IDs in data frame [", i,"] and dataRef are not the same, or are not in the same order. An inner join will be effected.", sep =""))
+    }
+    data_m <- merge(dataRef, c_data, by = "Sample_ID")
+    r_data <- data_m[,(dim(dataRef)[2] + 1):dim(data_m)[2]]
+    r_data <- cbind(data_m[, 1], r_data)
+    colnames(r_data)[1] <- 'Sample_ID' 
+    res_l_data[[i]] <- r_data
+  }
+  return(res_l_data)
+}
+
+Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
+  # Implement a merging system
+  l_data <- Merging_function(l_data, dataRef)
+  if (length(l_data) == 1 & stats == TRUE){
+    print("Warning : Statistical option are not available if `l_data` length is equal to 1.")
+    stats =  FALSE
+  }
+  
+  global_seq_list <- Seq_calcul(l_data , dataRef , listK )
+  
   stopCluster(cl)
   
   # _______________ Writing _________________
@@ -899,4 +870,70 @@ Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_
   
 }  
 
+
 Seq_graph_by_k(TEST[[1]], Names=NULL, list_col=NULL, data_diff_mean_K = NULL)
+
+
+seq_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
+  if (n > 30){
+    print("Warning : the calcul could be long !")
+  }
+  colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID' 
+  if (dim(data)[1] != dim(data_ref)[1]){
+    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")  
+  }
+  else if( dim(data)[1] == dim(data_ref)[1] & sum(as.character(data[, 1]) == as.character(data_ref[, 1])) != length(data_ref[, 1])){
+    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.") 
+  }
+  data_m <- merge(data, data_ref, by=c('Sample_ID'))
+  data <- data_m[, 1:dim(data)[2]]
+  data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
+  data_ref <- cbind(data_m[, 1], data_ref)
+  colnames(data_ref)[1] <- "Sample_ID"
+  
+  # For each K
+  for (k in list_K){
+   Seq_data_by_k <- Seq_calcul(data, data_ref, 10)
+  }                       
+  CP_ref <- CP_calcul(data_ref, list_K)
+  abs_diff <- abs(CP_data$CP - CP_ref$CP)
+  abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+  abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+  main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
+  
+  for (i in 1:n){
+    print(i)
+    data_shuffle <- data[,2:dim(data)[2]]
+    data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
+    data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
+    data_shuffle <- cbind(data[,1], data_shuffle, row.names = NULL)
+    colnames(data_shuffle)[1] <- "Sample_ID"
+    CP_data_A <- CP_calcul(data_shuffle, list_K)
+    abs_diff <- abs(CP_data_A$CP - CP_ref$CP)
+    abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+    abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+    main_diff_df <- cbind(main_diff_df , abs_diff_k)
+  }
+  theme_set(theme_bw())
+  p <- ggplot()
+  for (i in 3:dim(main_diff_df)[2]){
+    print(i)
+    c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,i])
+    p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')
+    
+  }
+  c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
+  p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
+  print(p)
+  
+  by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
+  Means_alea <- rowMeans(by_k_alea)
+  print(Means_alea)
+  WT  = wilcox.test( Means_alea,main_diff_df[ ,1])
+  print(WT)
+  return(WT)
+  
+  
+}
+
+
