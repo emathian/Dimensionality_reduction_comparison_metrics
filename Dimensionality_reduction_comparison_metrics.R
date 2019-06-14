@@ -688,7 +688,7 @@ Seq_calcul <- function(l_data, dataRef, listK){
 
   return(global_seq_list)
 }
-Seq_calcul(list(PCA_coords_df), TM_coords_df, c(10,20))
+Seq_calcul(list(PCA_coords_df), TM_coords_df, c(5,10,20,30,40,50))
 
 # __
 Merging_function <- function(l_data, dataRef){
@@ -721,8 +721,6 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
   }
   
   global_seq_list <- Seq_calcul(l_data , dataRef , listK )
-  
-  stopCluster(cl)
   
   # _______________ Writing _________________
   
@@ -834,11 +832,9 @@ Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_
     if (is.null(Names) == FALSE){
       if (length(Names) != (dim(data_Seq)[2] - 3)){
         print("Warning : The list of names gave as input doesn't match with the number of curve.")
-        print("ok2")
       }
       else{
         colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- Names
-        print("ok3")
       }  
     }
   }
@@ -849,7 +845,6 @@ Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_
   data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
   if (dim(data_diff_mean_k_graph)[2]>3){
     for (i in 3:(dim(data_diff_mean_k)[2]-1)){
-      print("ok5")
       c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
       data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
     }
@@ -875,6 +870,7 @@ Seq_graph_by_k(TEST[[1]], Names=NULL, list_col=NULL, data_diff_mean_K = NULL)
 
 
 seq_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
+ data <- data[[1]]
   if (n > 30){
     print("Warning : the calcul could be long !")
   }
@@ -890,50 +886,85 @@ seq_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
   data_ref <- cbind(data_m[, 1], data_ref)
   colnames(data_ref)[1] <- "Sample_ID"
-  
-  # For each K
-  for (k in list_K){
-   Seq_data_by_k <- Seq_calcul(data, data_ref, 10)
-  }                       
-  CP_ref <- CP_calcul(data_ref, list_K)
-  abs_diff <- abs(CP_data$CP - CP_ref$CP)
-  abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
-  abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
-  main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
-  
+  global_seq_df <- Seq_calcul(list(data), dataRef = data_ref , listK = list_K)[[1]]
+  mean_k <- tapply(global_seq_df$Seq, global_seq_df$K, mean)
+  main_df <- data.frame('k' = unique(global_seq_df$K) , "means_ref" = mean_k)
   for (i in 1:n){
-    print(i)
     data_shuffle <- data[,2:dim(data)[2]]
     data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
     data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
     data_shuffle <- cbind(data[,1], data_shuffle, row.names = NULL)
     colnames(data_shuffle)[1] <- "Sample_ID"
-    CP_data_A <- CP_calcul(data_shuffle, list_K)
-    abs_diff <- abs(CP_data_A$CP - CP_ref$CP)
-    abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
-    abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
-    main_diff_df <- cbind(main_diff_df , abs_diff_k)
+    Seq_data_A <- Seq_calcul(list(data_shuffle), dataRef = data_ref , listK = list_K)[[1]]
+    mean_k <- tapply(Seq_data_A$Seq, Seq_data_A$K, mean)
+    main_df <- cbind(main_df , mean_k)
   }
   theme_set(theme_bw())
   p <- ggplot()
-  for (i in 3:dim(main_diff_df)[2]){
+  for (i in 3:(dim(main_df)[2])){
     print(i)
-    c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,i])
-    p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')
-    
+    c_df <- data.frame('k' = main_df[ ,1] , 'main_df' = main_df[ ,i])
+    p <- p + geom_line(data = c_df, aes(x=k, y=main_df), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=main_df), colour = '#848484')
   }
-  c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
-  p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
+  c_df <- data.frame('k' = main_df[ ,1] , 'main_df' = main_df[ ,2])
+  p <- p + geom_line(data = c_df, aes(x=k, y=main_df), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=main_df), colour = '#B40404')
   print(p)
-  
-  by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
+
+  by_k_alea <- main_df[,3:dim(main_df)[2]]
   Means_alea <- rowMeans(by_k_alea)
   print(Means_alea)
-  WT  = wilcox.test( Means_alea,main_diff_df[ ,1])
+  WT  = wilcox.test(Means_alea,main_df[ ,1])
   print(WT)
   return(WT)
   
+}
+
+seq_permutation_test(list(PCA_coords_df), TM_coords_df, seq(from = 1, to = 100 , by = 20), n=5)
+
+head(PCA_coords_df)
+
+
+# For each K
+for (k in list_K){
+  Seq_data_by_k <- Seq_calcul(data, data_ref, 10)
+}                       
+CP_ref <- CP_calcul(data_ref, list_K)
+abs_diff <- abs(CP_data$CP - CP_ref$CP)
+abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
+
+for (i in 1:n){
+  print(i)
+  data_shuffle <- data[,2:dim(data)[2]]
+  data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
+  data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
+  data_shuffle <- cbind(data[,1], data_shuffle, row.names = NULL)
+  colnames(data_shuffle)[1] <- "Sample_ID"
+  CP_data_A <- CP_calcul(data_shuffle, list_K)
+  abs_diff <- abs(CP_data_A$CP - CP_ref$CP)
+  abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+  abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+  main_diff_df <- cbind(main_diff_df , abs_diff_k)
+}
+theme_set(theme_bw())
+p <- ggplot()
+for (i in 3:dim(main_diff_df)[2]){
+  print(i)
+  c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,i])
+  p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')
   
 }
+c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
+p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
+print(p)
+
+by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
+Means_alea <- rowMeans(by_k_alea)
+print(Means_alea)
+WT  = wilcox.test( Means_alea,main_diff_df[ ,1])
+print(WT)
+return(WT)
+
 
 
