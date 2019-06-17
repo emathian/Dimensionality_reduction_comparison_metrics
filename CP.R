@@ -561,7 +561,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   }
 }
 
-CA_coords_df = read.table("Meso_pca_coords.tab", sep="\t",header = T)
+PCA_coords_df = read.table("Meso_pca_coords.tab", sep="\t",header = T)
 TM_coords_df= read.table("Meso_tm_coords_v2.tab", sep="\t", header = T)
 UMAP_coords_NN230 <- read.table( "umap_coords_nn230.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
 R_meso_df = read.table("feature_data_with_lv_2.tsv", sep="\t", header = T)
