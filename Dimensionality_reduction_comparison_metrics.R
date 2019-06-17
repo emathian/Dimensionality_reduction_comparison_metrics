@@ -222,5 +222,82 @@ r_meso_df <- as.data.frame(r_meso_df)
 for (i in 2:dim(r_meso_df)[2]){
   r_meso_df[ ,i] <-as.numeric(r_meso_df[ ,i])
 }
+
+
+
+moran_stat_HD <- function(obs_moran_I , data, spatial_att, k , nsim = 99){
+  MI_rand <- c()
+  for (s in 1:nsim){
+    KNN_R <- matrix(0, nrow = dim(data)[1], ncol = k)
+    for (I in 1:dim(data)[1]){
+      KNN_R[I, ] <- floor(runif(k, min=1, max=(dim(data)[1]+1)))
+    }
+    m_neigh <- matrix(0, ncol = dim(KNN_R)[1], nrow =dim(KNN_R)[1])
+    for (i in 1:dim(KNN_R)[1]){
+      for (j in 1:dim(KNN_R)[2]){
+        n_index = KNN_R[i,j]
+        m_neigh[i,n_index] = 1
+      }
+    }
+    #print('rowSums(m_neigh)')
+    #print(rowSums(m_neigh))
+    n <- length(spatial_att[, 2])
+    y <- spatial_att[, 2]
+    ybar <- mean(y)
+    dy <- y - ybar
+    g <- expand.grid(dy, dy)
+    yiyj <- g[,1] * g[,2]
+    pm <- matrix(yiyj, ncol=n)
+    pmw <- pm * m_neigh
+    spmw <- sum(pmw)
+    smw <- sum(wm)
+    sw <-spmw/smw
+    vr <- n / sum(dy^2)
+    MI <- vr * sw
+    #print(MI)
+    MI_rand<- c(MI_rand,MI)
+  }
+  MI_rand_df = data.frame('MI' = MI_rand)
+  print(head(MI_rand_df))
+  print(length(MI))
+  print(dim(MI_rand_df))
+  print(MI_rand_df$MI[MI_rand_df$MI > obs_moran_I])
+  n_greater <- length(MI_rand_df$MI[MI_rand_df$MI > obs_moran_I])
+  print(n_greater)
+  PV <- n_greater / nsim
+  return(PV)
+}
+
+spa_VISTA <- data.frame("Sample_ID" = as.character(spatial_att$Sample_ID) , "VISTA" = spatial_att$VISTA)
+moran_index_HD(data= r_meso_df, spatial_att= spa_VISTA, K = 190, merge =FALSE)
+moran_index_HD(data= r_meso_df, spatial_att= spa_VISTA, K =20, merge =TRUE)
+moran_index_HD(data= r_meso_df, spatial_att= spa_VISTA, K =20, merge =NULL)
+
+
+
+PCA_coords_order <- test_spa_coords[[1]]
+PCA_coords_order$Sample_ID <- as.character(PCA_coords_order$Sample_ID)
+
+spatial_vista_order <- test_spa_coords[[2]]
+spatial_vista_order$Sample_ID <- as.character(spatial_vista_order$Sample_ID)
+
+moran_index_HD(data= PCA_coords_order, spatial_att= spatial_vista_order, K = 20, merge =T)
+moran_index_HD(data= PCA_coords_df, spatial_att= spa_VISTA, K = 20, merge =T)
+
+
+r_num_meso_df <- apply(R_meso_df[,2:dim(R_meso_df)[2]], 2, as.numeric )
+r_meso_df <- cbind(R_meso_df[,1],r_num_meso_df )
+r_meso_df <- as.data.frame(r_meso_df)
+for (i in 2:dim(r_meso_df)[2]){
+  r_meso_df[ ,i] <-as.numeric(r_meso_df[ ,i])
+}
+
+spatial_att_for_sim <- data.frame('Sample_ID' = spatial_att$Sample_ID,  'vista'= spatial_att$VISTA)
+moran_stat_HD(obs_moran_I = 0.005, data = PCA_coords_df, k = 20, nsim = 99, spatial_att = spatial_att_for_sim)
+
+
+
+
+
 r_meso_df[,1]<- as.character(r_meso_df[,1])
 MITEST  <- spatial_cor_main(l_coords_data = list(PCA_coords_df, UMAP_coords_NN230, r_meso_df), spatial_data = spatial_att, listK = c(20, 200), nsim = 101 )
