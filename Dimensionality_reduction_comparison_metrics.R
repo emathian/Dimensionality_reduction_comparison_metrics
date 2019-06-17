@@ -76,8 +76,8 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
     colnames(c_data)[1] <- "Sample_ID"
     L_coords_data[[i]] <- c_data
     c_spatial_data <- data_m[, 1:dim(spatial_data)[2]]
-    print(dim(c_data))
-    print(dim(c_spatial_data))
+    #print(dim(c_data))
+    #print(dim(c_spatial_data))
   }
   spatial_data <- c_spatial_data
   l_coords_data <- L_coords_data
@@ -85,29 +85,29 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
   sample_ID_vect = L_coords_data[[1]]$Sample_ID
   MI_array <- array(rep(NA, length(l_coords_data)* (dim(spatial_data)[2]-1)*length(listK)), dim=c(length(l_coords_data), (dim(spatial_data)[2]-1), length(listK)))
   MS_array <- array(rep(NA, length(l_coords_data)* (dim(spatial_data)[2]-1)*length(listK)), dim=c(length(l_coords_data), (dim(spatial_data)[2]-1), length(listK)))
-  print(dim(MI_array ))
-  print('ok1')
+  #print(dim(MI_array ))
+  #print('ok1')
   for (i in 1:length(l_coords_data)){
     c_data <- l_coords_data[[i]]
     c_data <- as.matrix(c_data[, 2:dim(c_data)[2]])
     print('oki')
     for (c_k in 1:length(listK)){
       # ADD an if 
-      print("c_k")
-      print(listK[c_k])
+      #print("c_k")
+      #print(listK[c_k])
       k_neigh <- knn2nb(knearneigh(c_data, k=listK[c_k], RANN=FALSE))
-      print( k_neigh[[1]])
+      #print( k_neigh[[1]])
       ww <- nb2listw(k_neigh, style='B')
-      print(ww$neighbours[[1]])
-      print('okk')
+      #print(ww$neighbours[[1]])
+      #print('okk')
       for (j in 2:dim(spatial_data)[2]){
         MI <- moran(spatial_data[, j], ww, n=length(ww$neighbours), S0=Szero(ww))
-        print("spatial_data[, j]")
-        print(spatial_data[, j])
+        #print("spatial_data[, j]")
+        #print(spatial_data[, j])
         MS <- moran.mc(spatial_data[, j], ww, nsim=99)
         MI_array[i,(j-1),c_k] <- MI$I
         MS_array[i,(j-1),c_k] <- MS$p.value
-        print('okj')
+        #print('okj')
       } 
     }
   }
@@ -131,20 +131,20 @@ moran_index_HD <- function(data, spatial_att, K, merge = NULL){
     colnames(c_data)[1] <- "Sample_ID"
     colnames(c_spatial_att)[1] <- "Sample_ID"
     data <- c_data
-    print(dim(c_data))
+    #print(dim(c_data))
     spatial_att <- c_spatial_att
    }
-  print("dim data")
-  print(dim(data))
-  print("spatial att")
-  print(dim(spatial_att))
-  print(head(spatial_att))
-  print("K")
-  print(K)
+  #print("dim data")
+  #print(dim(data))
+  #print("spatial att")
+  #print(dim(spatial_att))
+  #print(head(spatial_att))
+  #print("K")
+  #print(K)
   KNN_R  = get.knn(data[, 2:dim(data)[2]], k=K, algorithm=c( "brute"))
   KNN_R = KNN_R$nn.index
-  print("KNN_R$nn.index")
-  print(KNN_R)
+  #print("KNN_R$nn.index")
+  #print(KNN_R)
   m_neigh <- matrix(0, ncol = dim(KNN_R)[1], nrow =dim(KNN_R)[1])
   for (i in 1:dim(KNN_R)[1]){
     for (j in 1:dim(KNN_R)[2]){
@@ -152,8 +152,8 @@ moran_index_HD <- function(data, spatial_att, K, merge = NULL){
       m_neigh[i,n_index] = 1
     }
   }
-  print('rowSums(m_neigh)')
-  print(rowSums(m_neigh))
+  #print('rowSums(m_neigh)')
+  #print(rowSums(m_neigh))
   n <- length(spatial_att[, 2])
   y <- spatial_att[, 2]
   ybar <- mean(y)
@@ -180,9 +180,8 @@ PCA_coords_order$Sample_ID <- as.character(PCA_coords_order$Sample_ID)
 spatial_vista_order <- test_spa_coords[[2]]
 spatial_vista_order$Sample_ID <- as.character(spatial_vista_order$Sample_ID)
 
-moran_index_HD(data= PCA_coords_order, spatial_att= spatial_vista_order, K = 20, merge =NULL)
-
-moran_index_HD(data= PCA_coords_df, spatial_att= spa_VISTA, K = 200, merge =T)
+moran_index_HD(data= PCA_coords_order, spatial_att= spatial_vista_order, K = 20, merge =T)
+moran_index_HD(data= PCA_coords_df, spatial_att= spa_VISTA, K = 20, merge =T)
 
 
 r_num_meso_df <- apply(R_meso_df[,2:dim(R_meso_df)[2]], 2, as.numeric )
