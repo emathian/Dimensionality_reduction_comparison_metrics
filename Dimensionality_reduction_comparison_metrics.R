@@ -70,7 +70,7 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
     for (c_k in 1:length(listK)){
       if (dim(c_data)[2] == 2){
         k_neigh <- knn2nb(knearneigh(c_data, k=listK[c_k], RANN=FALSE))
-        print(k_neigh)
+        #print(k_neigh)
         ww <- nb2listw(k_neigh, style='B')
       }
       for (j in 2:dim(spatial_data)[2]){
@@ -82,8 +82,11 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
         }
         else{
           c_spatial_data <- data.frame("Sample_ID"= as.character(c_sample_id), "att" = spatial_data[, j] )
-          MI <- moran_index_HD(data = c_data, spatial_att = c_spatial_data, K = listK[c_k], merge = NULL)
-          MI_array[i,(j-1),c_k] <- MI
+          MI_KNN_R <- moran_index_HD(data = c_data, spatial_att = c_spatial_data, K = listK[c_k], merge = NULL)
+          #print(MI)
+          MI_array[i,(j-1),c_k] <- MI_KNN_R$MI  
+          KNN_R <- MI_KNN_R$KNN_R
+          print(KNN_R)
           MS <- moran_stat_HD(obs_moran_I = MI, data = c_data, k = listK[c_k], nsim = 500, spatial_att = c_spatial_data)
           MS_array[i,(j-1),c_k] <- MS
           
@@ -137,43 +140,40 @@ moran_index_HD <- function(data, spatial_att, K, merge = NULL){
   return(MI)
 }
 
+############################################################################
 
-moran_stat_HD <- function(obs_moran_I , data, spatial_att, k , nsim = 99){
-  MI_rand <- c()
+moran_stat_HD <- function(data, K, spatial_att, obs_moran_I, nsim = 99){
+  MI_rand <- numeric(length=nsim+1)
   for (s in 1:nsim){
-    KNN_R <- matrix(0, nrow = dim(data)[1], ncol = k)
-    for (I in 1:dim(data)[1]){
-      KNN_R[I, ] <- floor(runif(k, min=1, max=(dim(data)[1]+1)))
-    }
-    m_neigh <- matrix(0, ncol = dim(KNN_R)[1], nrow =dim(KNN_R)[1])
-    for (i in 1:dim(KNN_R)[1]){
-      for (j in 1:dim(KNN_R)[2]){
-        n_index = KNN_R[i,j]
-        m_neigh[i,n_index] = 1
-      }
-    }
-    n <- length(spatial_att[, 2])
-    y <- spatial_att[, 2]
-    ybar <- mean(y)
-    dy <- y - ybar
-    g <- expand.grid(dy, dy)
-    yiyj <- g[,1] * g[,2]
-    pm <- matrix(yiyj, ncol=n)
-    pmw <- pm * m_neigh
-    spmw <- sum(pmw)
-    smw <- sum(wm)
-    sw <-spmw/smw
-    vr <- n / sum(dy^2)
-    MI <- vr * sw
-    MI_rand<- c(MI_rand,MI)
+    spatial_att_shuffle <- spatial_att[sample(length(spatial_att[,2])),2]
+    spatial_att[ ,2] <- spatial_att_shuffle
+    MI <- moran_index_HD(data, spatial_att, K, merge = NULL)
+
+    MI_rand[s]<- MI
   }
-  MI_rand_df = data.frame('MI' = MI_rand)
-  n_greater <- length(MI_rand_df$MI[MI_rand_df$MI > obs_moran_I])
-  PV <- n_greater / nsim
-  return(PV)
+  MI_rand[nsim +1]<- obs_moran_I
+  rankres <- rank(MI_rand)
+  print(rankres)
+  xrank <- rankres[length(MI_rand)]
+  diff <- nsim - xrank
+  diff <- ifelse(diff > 0, diff, 0)
+  print(ifelse(diff > 0, diff, 0))
+  pval <- punif((diff + 1)/(nsim + 1))
+  if (!is.finite(pval) || pval < 0 || pval > 1) 
+    warning("Out-of-range p-value: reconsider test arguments")
+  statistic <- MI_rand[nsim+1]
+  names(statistic) <- "statistic"
+  parameter <- xrank
+  names(parameter) <- "observed rank"
+  method <- "Monte-Carlo simulation of Moran I"
+  lres <- list(statistic=statistic, parameter=parameter,
+               p.value=pval, alternative="greater", method=method)
+  print(lres)
+  return(lres)
 }
 
-
+dist <- moran_stat_HD(data = PCA_coords_df, K=200, spatial_att = spatial_att_for_sim,  obs_moran_I =- 0.05,  nsim = 30)
+hist(dist)
 #############################################
 
 spa_VISTA <- data.frame("Sample_ID" = as.character(spatial_att$Sample_ID) , "VISTA" = spatial_att$VISTA)
@@ -244,11 +244,9 @@ MS <- moran.mc(spatial_att$VISTA, ww, nsim=99)
 spa_VISTA <- data.frame("Sample_ID" = as.character(spatial_att$Sample_ID) , "VISTA" = spatial_att$VISTA)
 moran_index_HD(data= r_meso_df, spatial_att= spa_VISTA, K = 190, merge =FALSE)
 moran_index_HD(data= r_meso_df, spatial_att= spa_VISTA, K =20, merge =TRUE)
-moran_index_HD(data= r_meso_df, spatial_att= spa_VISTA, K =20, merge =NULL)
+test <- moran_index_HD(data= PCA_coords_df, spatial_att= spa_VISTA, K =200, merge =NULL)
 
  
 r_meso_df[,1]<- as.character(r_meso_df[,1])
 MITEST  <- spatial_cor_main(l_coords_data = list(PCA_coords_df, UMAP_coords_NN230, r_meso_df), spatial_data = spatial_att, listK = c(20, 200), nsim = 101 )
 spatial_att_for_sim <- data.frame('Sample_ID' = spatial_att$Sample_ID,  'vista'= spatial_att$VISTA)
-moran_stat_HD(obs_moran_I = 0.005, data = PCA_coords_df, k = 20, nsim = 99, spatial_att = spatial_att_for_sim)
-
