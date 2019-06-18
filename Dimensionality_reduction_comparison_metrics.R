@@ -13,15 +13,16 @@ library(FNN)
 # My colors : 
 # -----------
 
-custom.col <- c('#2ECC71', # clear green
-                 "#33691E", # olive green
+custom.col <- c(
                  '#1E90FF', # dark turquoise
                  "#1A237E", #  dark blue
                  '#6C3483', #  dar purple
                  '#D81B60', # Hot pink
+                 '#B22222', # brick red
                  "#D16103", # dark orange
                  "#FFD700", # gold
-                 '#B22222', # brick red
+                 '#2ECC71', # clear green
+                 "#33691E", # olive green
                  '#626567', # dark gray
                  "#17202A") # dark gray-blue 
 custom.col <<- append(custom.col, brewer.pal(n = 12, name = "Paired"))
@@ -99,6 +100,7 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Sta
     print("in names MI Array")
     rownames(MI_array) <- names(l_coords_data)
     colnames(MI_array) <- colnames(spatial_data)[2:dim(spatial_data)[2]]
+    dimnames(MI_array)[[3]]  <- listK
   }
 
   if (Stat != FALSE){
@@ -106,6 +108,7 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Sta
       print("in names MS Array")
       rownames(MS_array) <- names(l_coords_data)
       colnames(MS_array) <- colnames(spatial_data)[2:dim(spatial_data)[2]]
+      dimnames(MS_array)[[3]]  <- listK
     }
     return(list('MoranIndex' = MI_array,'MoranStat'= MS_array))
   }
@@ -238,8 +241,102 @@ for (i in 2:dim(r_meso_df)[2]){
 }
 
 ###########################################################################
-moran_I_scatter_plot <- function()
+moran_I_scatter_plot <- function(data, Xlab = NULL, Ylab=NULL, Title= NULL){
+  if (dim(data)[3] == 1){
+    vect_metod <- c()
+    moranI <- c()
+    if (is.null(rownames(data))){
+      rownames(data) <- seq(dim(data)[1])
+    }
+    if (is.null(colnames(data))){
+      colnames(data) <- seq(dim(data)[2])
+    }
+    for (i in 1:dim(data)[1]){
+      cm <- rep(rownames(data)[i], dim(data)[2])
+      vect_metod <- c(vect_metod, cm)
+      moranI <- c(moranI, data[i, ])
+    }
+    att <- rep(colnames(data), dim(data)[1])
+    df_graph <- data.frame("Methods" = vect_metod, "Attributes" =att, "moranI" = moranI )
+  
+    theme_set(theme_bw())
+    if (is.null(Title)){
+      Title <- "Moran indexes by method"
+    }
+    if(is.null(Xlab)){
+     Xlab <- "variable"  
+    }
+    if(is.null(Ylab)){
+      Ylab <-"Moran.Index"
+    }
+  
+  
+    p <- ggplot(df_graph, aes(x=Attributes, y=moranI,  group=Methods, color = Methods)) +  geom_point(size = 4)+
+      scale_colour_manual(values=custom.col[1:length(unique(df_graph$Methods))])
+    p <- p +  labs(title=Title, caption = "Moran indexes for each variable and for each method. ",
+                   y=Ylab, x= Xlab) +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                                                           plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                                                           plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                                                           axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                                                           axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                                                           axis.text.x=element_text(size=12),  # X axis text
+                                                           axis.text.y=element_text(size=12))  # Y axis text
+    print(p) 
+    return(p)
+  }
+  else{
+    vect_metod_k <- c() 
+    moranI_k <- c()
+    att_k <-c()
+    for (k in 1:dim(data)[3]){
+      vect_metod <- c()
+      moranI <- c()
+      att_I <- c()
+      if (is.null(rownames(data))){
+        rownames(data) <- seq(dim(data)[1])
+      }
+      if (is.null(colnames(data))){
+        colnames(data) <- seq(dim(data)[2])
+      }
+      for (i in 1:dim(data)[1]){
+        cm <- rownames(data)
+        vect_metod <- c(vect_metod, cm)
+        moranI <- c(moranI, data[i, , k])
+        att <- colnames(data)
+        att_I <- c(att_I, att)
+      }
+      vect_metod_k <- c(vect_metod_k, vect_metod)
+      moranI_k <- c(moranI_k, moranI)
+      att_k <- c(att_k, att_I)
+    }
+    df_graph <- data.frame("Methods" = vect_metod_k, "Attributes" =att, "moranI" = moranI_k )
+    
+    p <- ggplot(df_graph, aes(x=Attributes, y=moranI,  group=Methods, fill = Methods)) + geom_boxplot(notch=F)+
+      scale_fill_manual(values=custom.col[1:length(unique(df_graph$Methods))])
+    p <- p +  labs(title=Title, caption = "Moran indexes for each variable and for each method. ",
+                   y=Ylab, x= Xlab) +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                                           plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                                           plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                                           axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                                           axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                                           axis.text.x=element_text(size=12),  # X axis text
+                                           axis.text.y=element_text(size=12))  # Y axis text
+    print(p) 
+    return(p)
+    
+    
+    
+  }
+  
+}
+moran_I_scatter_plot(MITEST$a)
 
+
+
+
+
+plot_test <- MITEST[[1]][,,1]
+rownames(plot_test) <- c("A","B","C")
 spatial_att <- read.table("Meso_spatial_cor_att.tsv", header = T)
 pca_coords_xy <- as.matrix(PCA_coords_df[, 2:3])
 k3 <- knn2nb(knearneigh(pca_coords_xy, k=20, RANN=FALSE))
