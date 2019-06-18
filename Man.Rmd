@@ -85,7 +85,7 @@ This function allows to draw a graphic, representing the means by k levels of th
 
 * **Names** : This optional argument allows to specify the legend. If it is not defined `data_CP` colnames will be used.
 
-* **list_col** : This optional argument allows to speficy colors, otherwise a list of colors  previously defined is used.
+* **list_col** : This optional argument allows to speficy colors, otherwise the list of colors previously defined is used.
 
 ### Value 
 
@@ -152,7 +152,7 @@ After $n$ permutation a Willcoxon test is done.
 
 * **list_K** : list of k levels according the ones CP values are calculated.
 
-* **n** : optional numeric argument defining the number of simulation that will be done, because the computation could be long a warning message is printed if $n$ is higher than 30.
+* **n** : optional numeric argument defining the number of simulations that will be done, because the computation could be long a warning message is printed if $n$ is higher than 30.
 
 * **graph** : optional boolean argument specifying if a plot must be computed or not. 
 
@@ -293,7 +293,7 @@ A inner join on samples' ID is effected if those differs between the different d
 ### Value 
 
 According options activated the return list contains the following elements :
-  return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k, 'stats' = c(KST, paired_test_m)))
+
 * **Seq_df** : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of $SQ$ values. This data frame is written is a `filename` is defined.
 
 * **Seq_mean_by_k** : data frame containing the means of $SQ$ values by level $k$, and this each data frame defined in `l_data`.
@@ -309,5 +309,225 @@ According options activated the return list contains the following elements :
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
+## Graphic of means of sequence difference values by k values `Seq_graph_by_k`
+
+### Description 
+ 
+This function displays the graphic of means of sequence difference values by k values.
+
+### Usage
+
+`Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_K = NULL)`
+
+### Arguments
+
+* **data_Seq** : data frame of sequence difference values structured such as :
+
+| Sample_ID | K          | CP1     |
+|-----------|------------|---------|
+| MYID      | 1Kst_level | CP1_id1 |
 
 
+* **Names** : optional argument allowing to precise legend labels. If this argument is unprecised lengend labels are equal to `data_Seq`'s colnames.
+
+
+* **list_col** : this optional argument allows to speficy colors, otherwise the list of colors previously defined is used.
+
+* **data_diff_mean_K** : optional data frame contining means of SQ values by K level. If this argument is precised then means are not calculated. 
+
+
+### Value 
+
+A ggplot object is returned.
+
+### See also
+
+`Seq_main`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+## Sequence difference values permutation test `seq_permutation_test`
+
+### Description 
+ 
+Then this function tets the following hypothesis :
+
+$SQ$ values calculated on real data have the same distribution than the ones expected if data coordinates where randomly distributed.
+In order to do this $n$ simulations are realized. Acccording these simulations means by k values are calculated, and finally wilcoxon test is effected to compare the mean random distribution and the real one.
+
+### Usage
+
+`seq_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE)`
+
+### Arguments
+
+* **data** : data frame defining such as :
+
+| Sample_ID | x       | y        | ... |
+|-----------|---------|----------|-----|
+| MYID      | x_coord | y_coords | ... |
+
+
+* **data_ref** : reference data frame whose structure is the same as above.
+
+* **listK** : list k values.
+
+* **n** : number of simulations.
+
+* **graph** : optional boolean argument, if this argument is TRUE, simulations resulting graphic is computed.
+
+### Value 
+
+This function returns the Wilcoxon test's results.
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%% MERGING TOOL  %%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+# Spatial autocorrelation
+
+## Moran index main function `moran_I_main`
+
+### Description 
+ 
+This function allows to calculate Moran Indexes, spatial autocorrelation indexes. Values are calculated for several variables according several projection and for differents k levels. Graphics of Moran Indexes distribution for each variable, could be computed. Finally significance test is computed according the Monte Carlo procedure. The hypothesis is : Does the observe spatial autocorrelation is greater than the one expected for random spatial distributions ?
+
+### Usage
+
+`moran_I_main <-function(l_coords_data , spatial_att, listK, nsim = 500, Stat=FALSE, Graph = FALSE)`
+
+### Arguments
+
+* **l_coords_data** : list of coordinates data frames whose structure is :
+
+| Sample_ID | x       | y        | ... |
+|-----------|---------|----------|-----|
+| MYID      | x_coord | y_coords | ... |
+
+These data frames contain samples' coordinates which could be defined in $\mathbb{R^n}$.
+
+
+* **spatial_att** : data frame which contains variables values.
+
+| Sample_ID | Variable1 | Variable2 | ... |
+|-----------|-----------|-----------|-----|
+| MYID      | V1_myid   | V2_myid   | ... |
+
+* **listK** : list k values
+
+* **nsim** : number of simulations for the significance test. 
+
+* **Stat** : optional boolean argument, if this argument is set to TRUE, then the significance test will be calculated.
+
+* **Graph** : optional boolean argument,  if this argument is set to TRUE, then the graphic of Moran Index distributions is drawn. This graphic depicts Moran Indexes distributions for each variable.
+ 
+### Details 
+
+Moran Idexes calculation use parallel computing.
+A inner join on samples' ID is effected if those differs between the different data frames.
+Moran Indexes and statistics for dimension higher than two are computed according `moran_index_HD` and `moran_stat_HD`functions.
+
+### Value 
+
+According options activated the return list contains the following elements :
+
+* **MI_array** : 3D array containing Moran Index for each projection in row $i$, each variable in colunm $j$ and each $k$ level.
+
+* **MS_array** : 3D array containing Moran Significance tests' p.value for each projection in row $i$, each variable in colunm $j$ and each $k$ level.
+
+* **Graph** : A ggplot is printed if the option is activated
+
+### See also 
+`moran_index_HD`, `moran_stat_HD` and `moran_I_scatter_plot`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+## Calcul of Moran Indexes for high dimensional data `moran_index_HD `
+
+moran_stat_HD <- function(data, K, spatial_att, obs_moran_I, nsim = 99)
+
+### Description 
+ 
+This function allows to calculate Moran Indexes for high dimensional data by generalizing the process effected in 2D. In order to get Moran Indexes the $k-$nearest neighbors are defined for each sample according the brute method of knn algorithm. This $k-$nearest neighbors is use to define the spatial weights matrix. Then Moran Indexes are computed classically. 
+
+### Usage
+
+`moran_index_HD <- function(data, spatial_att, K, merge = TRUE)`
+
+### Arguments
+
+* **data** : data frame defining such as :
+
+| Sample_ID | x        | y        | z        | ... |
+|-----------|----------|----------|----------|-----|
+| MYID      | x_coords | y_coords | z_coords | ... |
+
+
+* **spatial_att** : data frame which contains variables values.
+
+| Sample_ID | Variable1 | Variable2 | ... |
+|-----------|-----------|-----------|-----|
+| MYID      | V1_myid   | V2_myid   | ... |
+
+* **K** : numeric argument defining k level.
+
+* **merge** : optional boolean argument that allows to checked if `spatial_att` and `datta` contains the same samples' ID. If samples' ID differs then an inner join will be done. 
+
+### Value 
+
+Moran Index (numeric value).
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+
+## Moran significance test for high dimensional data `moran_stat_HD`
+
+
+### Description 
+ 
+Singnificance test are computed according Monte Carlo procedure. Like this $n$ simulations are done, at each iteration the vector of the variable of interest is shuffle, and then Moran Indexes are clculatated using `moran_index_HD` function. Finally the rank of the observed Moran Index in the resulting vector is computed to infer the p.value. This p.value is the proportion of Moran Indexes obtained with random data that are greater then the observed Moran Index. 
+
+### Usage
+
+`moran_stat_HD <- function(data, K, spatial_att, obs_moran_I, nsim = 99)`
+
+### Arguments
+
+* **data** : data frame defining such as :
+
+| Sample_ID | x        | y        | z        | ... |
+|-----------|----------|----------|----------|-----|
+| MYID      | x_coords | y_coords | z_coords | ... |
+
+
+* **K** : numeric argument defining a k level.
+
+* **spatial_att** : data frame which contains variables values.
+
+| Sample_ID | Variable1 | 
+|-----------|-----------|
+| MYID      | V1_myid   |      
+
+
+
+* **obs_moran_I** : observed moran Index computed according the real spatial distribution of the variable.
+
+* **nsim** : number of simulations.
+
+### Value 
+
+Moran Significance test p.value. 
+
+### See also 
+
+`moran_I_main`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+moran_I_scatter_plot <- function(data, Xlab = NULL, Ylab=NULL, Title= NULL)
