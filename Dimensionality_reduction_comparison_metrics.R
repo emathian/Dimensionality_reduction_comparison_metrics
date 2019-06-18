@@ -35,7 +35,7 @@ cols(23)
 
 ################################ SPATIAL AUTO CORRELATION ANALYSIS #############################################if (!require("rspatial")) devtools::install_github('rspatial/rspatial')
 
-spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Stat=FALSE){
+spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Stat=FALSE, Graph = FALSE){
   # Merging 
   colnames(spatial_data)[1] <- "Sample_ID"
   L_coords_data <- list()
@@ -58,9 +58,14 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Sta
     Spa_data[[i]] <- c_spatial_data
   }
   l_coords_data <- L_coords_data
+  if (max(listK) > dim(l_coords_data[[1]])[1] ){
+    warning("K levels are higher than the number of points. l_coords_data[[i]] such as : listK <- seq(1,dim(l_coords_data[[1]])[1],10).")
+    listK <- seq(1,dim(l_coords_data[[1]])[1],10)
+  }
   MI_array <- array(rep(NA, length(l_coords_data)* (dim(spatial_data)[2]-1)*length(listK)), dim=c(length(l_coords_data), (dim(spatial_data)[2]-1), length(listK)))
   MS_array <- array(rep(NA, length(l_coords_data)* (dim(spatial_data)[2]-1)*length(listK)), dim=c(length(l_coords_data), (dim(spatial_data)[2]-1), length(listK)))
-  for (i in 1:length(l_coords_data)){
+ 
+   for (i in 1:length(l_coords_data)){
     c_data <- l_coords_data[[i]]
     spatial_data <- Spa_data[[i]]
     c_sample_id <- spatial_data[ ,1]
@@ -101,6 +106,10 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Sta
     rownames(MI_array) <- names(l_coords_data)
     colnames(MI_array) <- colnames(spatial_data)[2:dim(spatial_data)[2]]
     dimnames(MI_array)[[3]]  <- listK
+  }
+  if (Graph != FALSE){
+    print("here")
+    moran_I_scatter_plot(MI_array)
   }
 
   if (Stat != FALSE){
@@ -310,10 +319,18 @@ moran_I_scatter_plot <- function(data, Xlab = NULL, Ylab=NULL, Title= NULL){
       att_k <- c(att_k, att_I)
     }
     df_graph <- data.frame("Methods" = vect_metod_k, "Attributes" =att, "moranI" = moranI_k )
-    
+    if (is.null(Title)){
+      Title <- "Moran indexes by method"
+    }
+    if(is.null(Xlab)){
+      Xlab <- "variable"  
+    }
+    if(is.null(Ylab)){
+      Ylab <-"Moran.Index"
+    }
     p <- ggplot(df_graph, aes(x=Attributes, y=moranI,  group=Methods, fill = Methods)) + geom_boxplot(notch=F)+
       scale_fill_manual(values=custom.col[1:length(unique(df_graph$Methods))])
-    p <- p +  labs(title=Title, caption = "Moran indexes for each variable and for each method. ",
+    p <- p +  labs(title=Title, caption = "Moran indexes distribution by k level for each variable and for each method. ",
                    y=Ylab, x= Xlab) +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                            plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                            plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
@@ -362,5 +379,5 @@ test <- moran_index_HD(data= PCA_coords_df, spatial_att= spa_VISTA, K =200, merg
 
  
 r_meso_df[,1]<- as.character(r_meso_df[,1])
-MITEST  <- spatial_cor_main(l_coords_data = list(PCA_coords_df, UMAP_coords_NN230, r_meso_df), spatial_data = spatial_att, listK = c(20, 200), nsim = 31, Stat = TRUE )
+MITEST  <- spatial_cor_main(l_coords_data = list(PCA_coords_df, UMAP_coords_NN230, r_meso_df), spatial_data = spatial_att, listK = seq(1,200,30), nsim = 31, Stat = FALSE, Graph = TRUE )
 spatial_att_for_sim <- data.frame('Sample_ID' = spatial_att$Sample_ID,  'vista'= spatial_att$VISTA)
