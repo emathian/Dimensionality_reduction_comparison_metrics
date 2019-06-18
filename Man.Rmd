@@ -2,11 +2,14 @@
 title: "Comparisons of dimensionality reduction methods"
 author: "Emilie Mathian"
 date: "6/18/2019"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    theme: united
 ---
 
 # Centrality preservation 
-
 ## Centrality preservation main function `CP_main`
 
 ### Description 
@@ -27,17 +30,17 @@ This function allows to calculate CP values for a list a file given as input. If
 
 These data frames contain coordinates which could be defined in $\mathbb{R^n}$.
 
-* `listK` : list k values
+* **listK** : list k values
 
-* `dataref` : data frame of reference whose strucuture is the same as define above. If this argument is not defined then statistic and plots cannot be computed.
+* **dataref** : data frame of reference whose strucuture is the same as define above. If this argument is not defined then statistic and plots cannot be computed.
 
-* `colnames_res_df` : This optional argument allows to specify colnames of the returned data frame and also plots' legend if it computes. If this argument is unsecified then the default values will be set to : V1,V2, ..., Vn (where $n$ is the length of `l_data`). 
+* **colnames_res_df** : This optional argument allows to specify colnames of the returned data frame and also plot's legend if it was computed. If this argument is unsecified then the default values will be set to : V1,V2, ..., Vn (where $n$ is the length of `l_data`). 
 
-* `filename` : This optional arguement allows to defined the filename on which results will be written. If this argument is unspecified then results will be returned and not written. If users choose a filename that ever exits in the current directory a incrementation to the filename will be done.
+* **filename** : This optional arguement allows to defined the filename on which results will be written. If this argument is unspecified then results will be returned and not written. If users choose a filename that ever exits in the current directory a incrementation to the filename will be done.
 
-* `graphics` : This boolean argument allows to computes plots. This option is available only if `dataref` is defined. Indeed the plot is the means by k levels of absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
+* **graphics** : This boolean argument allows to computes plots. This option is available only if `dataref` is defined. Indeed the plot is the means by k levels of absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
 
-* `stats` : As previously `stats` option allows to run statistics tests only if `dataref` is defined. If only two data frames were given input via the `l_data` argument then a Wilcoxon test will be computed to compare the distribution of the the means by k levels of absolute differences between CP values calculated for each method. If more than two method are comparated then a Kruskal Wallis test effected, and then the Wilcoxon paired test are effected.
+* **stats** : As previously `stats` option allows to run statistic tests only if `dataref` is defined. If only two data frames were given as input via the `l_data` then a Wilcoxon test will be computed to compare the distribution of the means by k levels of absolute differences between CP values calculated for each method and reference one. If more than two methods were defined then a Kruskal Wallis test is effected, and finally Wilcoxon paired tests are done.
 
 ### Details 
 
@@ -47,15 +50,16 @@ CP values' calcul are compueted in parallel according the list of k levels. Furt
 
 According options activated the return list contains the following elements :
 
-* `CP_Data_frame` : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of CP values, more one if `dataref` is defined. This data frame is written is a `filename` is defined.
+* **CP_Data_frame** : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of CP values, more one if `dataref` is defined. This data frame is written is a `filename` is defined.
 
-* `CP_Diff_mean_by_K`: data frame containing the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
+* **CP_Diff_mean_by_K** : data frame containing the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
 
-* `Kruskal_test` : Results of the Krulkal Wallis test.
+* **Kruskal_test** : Results of the Krulkal Wallis test.
 
-* `Wilcoxon_test` : Results of the Wilcoxon test.
+* **Wilcoxon_test** : Results of the Wilcoxon test.
 
-* `Paired_wilocoxon_test` : Matrix containing the Wilcoxon paired test p.value.
+* **Paired_wilocoxon_test** : Matrix containing the Wilcoxon paired tests p.value.
+
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
@@ -124,6 +128,186 @@ A data frame containing three columns : one  with the samples' Id, another one w
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
-CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE)
+## Centrality preservation permutation test `CP_permutation_test`
+
+### Description 
+This function calculates the means by k level of the absolute differences between CP values previously calculated and the ones given as reference such as :
+$$DCP_k = \sum_{i = 1}^N (|CP_i - CP^{ref}_i|)$$
+Where $N$ is the number of sample.
+Then this function tets the following hypothesis :
+
+$DCP$ values have the same distribution as the ones expected if data coordinates where randomly distributed.
+
+After $n$ permutation a Willcoxon test is done.
+
+### Usage
+
+`CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE)` 
+
+### Arguments
+
+* **data** : data frame containing samples' ID  and their coordinates in  $\mathbb{R}^N$.
+
+* **data_ref** : data frame with the same features as those defined above.
+
+* **list_K** : list of k levels according the ones CP values are calculated.
+
+* **n** : optional numeric argument defining the number of simulation that will be done, because the computation could be long a warning message is printed if $n$ is higher than 30.
+
+* **graph** : optional boolean argument specifying if a plot must be computed or not. 
+
+### Value 
+
+The wilcoxon's results are returned.
+
+### Details
+
+If samples' ID defined in `data` and `data_ref` are not the same an inner join is effected according Samples' ID.
+
+### See also 
+
+`CP_main`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+
+## Map of CP values `CP_map`
+
+### Description 
+
+This function allows to display samples' CP value on 2D projection.
+
+### Usage
+
+`CP_map <- function(data_CP, data_coords, listK, Title = NULL)` 
+
+### Arguments
+
+* **data_CP** : data frame containing samples' ID, their CP values and the k levels associated such as :
+
+| Sample_ID | K          | CP1     |
+|-----------|------------|---------|
+| MYID      | 1Kst_level | CP1_id1 |
+
+
+* **data_coords** : data frame of coordinates in 2D.
+
+* **list_K** : list of k levels according the ones CP values are calculated.
+
+* **Title** : optional argument defining the graphics title.
+
+### Value 
+
+Plotly graphics.
+
+### Details
+
+Plotly could slow down the R session. 
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+
+
+# Sequence difference view
+
+## Sequence difference view calculation `Seq_calcul`
+
+### Description 
+ 
+This function allows to calculate the sequence diffeence ($SQ$) view metrics. For a point $i$  the formula is :
+$$SD_k(i) = \frac{1}{2} \sum_{j \in V^l_k(i)}(k-\rho^l_i(j)).|\rho^l_i(j)-\rho^h_i(j)|+  \frac{1}{2} \sum_{j \in V^h_k(i)}(k-\rho^h_i(j)).|\rho^l_i(j)-\rho^h_i(j)| $$
+
+where $\rho^d_i(j)$ was previously defined and $V^d_k(i)$ is the $k-$neighborhood of $i$ in the $d$ dimension. This metric penalizes the non preservation of $j$'s rank between $D^l$ and $D^h$, and weights this penalization according $ij$'s  closeness.
+
+### Usage
+
+`Seq_calcul <- function(l_data, dataRef, listK)`
+
+### Arguments
+
+* **l_data** : list of data frame whose structure is :
+
+| Sample_ID | x       | y        | ... |
+|-----------|---------|----------|-----|
+| MYID      | x_coord | y_coords | ... |
+
+These data frames contain samples' coordinates which could be defined in $\mathbb{R^n}$.
+
+* **dataRef** : reference data frame whose structure is defined above.  
+
+* **listK** : list k values
+
+### Details 
+
+* A inner join on samples' ID is effected if they differs between the different data frames.
+* Calculations use a parallel computing  according the levels $k$. 
+
+### Value 
+
+A list of containing $l$ element is returned, where $l$ is the number of data frame in `l_data`.
+Each element contains $n$ SQ values, where $n$ is the number of common samles' ID.
+
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+## Main function for sequence difference view `Seq_main`
+
+### Description 
+ 
+This function allows to calculate $SQ$ values for several data frames and for differents k levels. Distributions of  
+means $SQ$ values by levels $k$ could be plot. Finally statistic tests could be computed if at least two $SQ$ vectors were calculated.
+
+### Usage
+
+`Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE)`
+
+### Arguments
+
+* **l_data** : list of data frame whose structure is :
+
+| Sample_ID | x       | y        | ... |
+|-----------|---------|----------|-----|
+| MYID      | x_coord | y_coords | ... |
+
+These data frames contain samples' coordinates which could be defined in $\mathbb{R^n}$.
+
+
+* **dataref** : data frame of reference whose strucuture is the same as define above. 
+
+* **listK** : list k values
+
+* **colnames_res_df** : This optional argument allows to specify colnames of the returned data frame and also plot's legend if it was computed. If this argument is unsecified then the default values will be set to : V1,V2, ..., Vn (where $n$ is the length of `l_data`). 
+
+* **filename** : This optional arguement allows to defined the filename on which results will be written. If this argument is unspecified then results will be returned and not written. If users choose a filename that ever exits in the current directory a incrementation to the filename will be done.
+
+* **graphics** : This boolean argument allows to computes plot. The plot represents means of $SQ$ values for the different $k$ levels and for the different data frames in `l_data`.
+
+* **stats** :  This option allows to run statistic tests, it is available only if the number of defines method is higher at least equal to two, (*i.e* `l_data`'s length is $\geq 2$). If only two data frames were given as input via the `l_data`  then a Wilcoxon test will be computed to compare the distribution of the the means by k levels of absolute differences between $SQ$ values. If more than two methods were defined then a Kruskal Wallis test is effected, and finally Wilcoxon paired tests are done.
+
+### Details 
+
+A inner join on samples' ID is effected if those differs between the different data frames.
+
+### Value 
+
+According options activated the return list contains the following elements :
+  return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k, 'stats' = c(KST, paired_test_m)))
+* **Seq_df** : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of $SQ$ values. This data frame is written is a `filename` is defined.
+
+* **Seq_mean_by_k** : data frame containing the means of $SQ$ values by level $k$, and this each data frame defined in `l_data`.
+
+* **stats** : A list of at most two elements :
+  +  **KS** : Kruskal Wallis' results,
+  +  **WT** : Wilcoxon test's results,
+  +  **pWT** :  Matrix of Wilcoxon paired tests' p.value.
+
+* **graphics** : GGplot if the graphic was computed.
+
+
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
 
 
