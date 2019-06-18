@@ -5,7 +5,7 @@ library(RColorBrewer)
 library(plotly)
 
 # -----------
-# My colors : 
+# My colors :
 # -----------
 
 custom.col <- c('#2ECC71', # clear green
@@ -18,7 +18,7 @@ custom.col <- c('#2ECC71', # clear green
                 "#FFD700", # gold
                 '#B22222', # brick red
                 '#626567', # dark gray
-                "#17202A") # dark gray-blue 
+                "#17202A") # dark gray-blue
 custom.col <<- append(custom.col, brewer.pal(n = 12, name = "Paired"))
 cols <- function(a) image(1:23, 1, as.matrix(1:23), col=custom.col, axes=FALSE , xlab="", ylab="")
 a <- 1:23
@@ -28,7 +28,7 @@ cols(23)
 
 
 # -----------------
-#  Tools function : 
+#  Tools function :
 # ----------------
 Merging_function <- function(l_data, dataRef){
   colnames(dataRef)[1] <- "Sample_ID"
@@ -46,7 +46,7 @@ Merging_function <- function(l_data, dataRef){
     dataRef <- dataRef[, 1:dim(dataRef)[2]]
     r_data <- data_m[,(dim(dataRef)[2] + 1):dim(data_m)[2]]
     r_data <- cbind(data_m[, 1], r_data)
-    colnames(r_data)[1] <- 'Sample_ID' 
+    colnames(r_data)[1] <- 'Sample_ID'
     res_l_data[[i]] <- r_data
   }
   return(list(res_l_data, dataRef))
@@ -62,26 +62,26 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
   # _________________________________________
-  
-  
+
+
   # __________ Distance matrices ____________
   l_dist = list()
   for (i in 1:length(l_data)){
     c_data <- l_data[i][[1]]
-    dist <- as.matrix(dist(c_data[, 2:dim(c_data)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+    dist <- as.matrix(dist(c_data[, 2:dim(c_data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
     rownames(dist) <- as.character(c_data[ ,1])
-    colnames(dist) <- as.character(c_data[ ,1]) 
+    colnames(dist) <- as.character(c_data[ ,1])
     l_dist[[i]] = dist
   }
   if (is.null(dataRef) == FALSE){
-    distRef <- as.matrix(dist(dataRef[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+    distRef <- as.matrix(dist(dataRef[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
     rownames(distRef) <- as.character(dataRef[ ,1])
-    colnames(distRef) <- as.character(dataRef[ ,1]) 
+    colnames(distRef) <- as.character(dataRef[ ,1])
   }
   # _________________________________________
-  
+
   #_____________ Calculs of CP values _______
-  
+
   list_CP <- list()
   len_list_CP <- list()
   for (I in 1:length(l_data)){
@@ -116,7 +116,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     list_CP[[I]] <- CP_c_data
     len_list_CP[[I]] <- length(CP_c_data[ ,1])
   }
-  
+
   if (is.null(dataRef) == FALSE){
     CPRef <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
       k = list_K[i]
@@ -147,16 +147,16 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     len_list_CP[[I+1]] <- length(CPRef[ ,1])
   }
   # _________________________________________
-  
+
   stopCluster(cl)
-  
+
   # __________________ Writing option and CP Data Frame __________
   if (length(unique(len_list_CP))==1){
     df_to_write <- data.frame('Sample_ID' = list_CP[[1]]$Sample_ID, 'K' = list_CP[[1]]$K )
     for (i in 1:length(list_CP)){
       df_to_write <- cbind(df_to_write, list_CP[[i]]$CP)
       colnames(df_to_write)[dim(df_to_write)[2]] <- paste('V', i, sep="")
-    }  
+    }
   }
   else{
     print("Warning :  Input data frames don't the same number of lines a inner join will be done. ")
@@ -164,15 +164,15 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     for (i in 2:length(list_CP)){
       df_to_write <- merge(df_to_write, list_CP[[i]],  by=c('Sample_ID'))
       colnames(df_to_write)[dim(df_to_write)[2]] <- paste('V', i, sep="")
-    }  
+    }
   }
-  if (is.null(colnames_res_df) == FALSE){ 
+  if (is.null(colnames_res_df) == FALSE){
     if (is.null(dataRef) == FALSE){
       colnames_res_df <- c(colnames_res_df, 'REF')
     }
     colnames(df_to_write)[3:length(colnames(df_to_write))] <- colnames_res_df
   }
-  
+
   if (is.null(filename) == FALSE) {
     if (file.exists(as.character(filename))){
       print("Warning : The filename gives as argument exist in the current directory, this name will be 'incremented'.")
@@ -185,8 +185,8 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     write.table(df_to_write, file = filename, sep = "\t")
   }
   # ____________________________________________________
-  
-  
+
+
   # ___________________  NO Stats, NO graphic, NO Ref _____
   if ( is.null(dataRef) == TRUE){
     if (graphics == TRUE | stats == TRUE ){
@@ -207,16 +207,16 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     print('data_diff_mean_k')
     print(head(data_diff_mean_k))
     if (graphics == FALSE & stats == FALSE){
-      return(list("CP_Data_frame" = data_CP,'CP_Diff_mean_by_K' = data_diff_mean_k))  
+      return(list("CP_Data_frame" = data_CP,'CP_Diff_mean_by_K' = data_diff_mean_k))
     }
-    if (graphics == TRUE){ 
+    if (graphics == TRUE){
       data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
       if (dim(data_diff_mean_k)[2] > 2){
         for (i in 3:(dim(data_diff_mean_k)[2])){
           c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
           data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
         }
-      }  
+      }
       theme_set(theme_bw())
       p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
         scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
@@ -228,7 +228,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
                                                              axis.title.y=element_text(size=12, face="bold"),  # Y axis title
                                                              axis.text.x=element_text(size=12),  # X axis text
                                                              axis.text.y=element_text(size=12))  # Y axis text
-      
+
       print(p)
       if (dim(data_diff_mean_k)[2] == 2){ # Only one method was define
         if (stats == TRUE){
@@ -246,14 +246,14 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       if (dim(data_diff_mean_k)[2] == 3){
         WT =wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[ ,3])
         print(WT)
-      }    
+      }
       # Kruskal test
       else{
         ks_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, 2], 'method'= rep(colnames(data_diff_mean_k)[2], dim(data_diff_mean_k)[1]))
-        
+
         for (i in 3:dim(data_diff_mean_k)[2]){
           c_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, i], 'method'=rep(colnames(data_diff_mean_k)[i], dim(data_diff_mean_k)[1]))
-          ks_df <- rbind(ks_df, c_df ) 
+          ks_df <- rbind(ks_df, c_df )
           KST = kruskal.test(mean_diff_cp ~ method, data = ks_df)
           print(KST)
         }
@@ -268,7 +268,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
         }
         colnames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
         rownames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
-        paired_test_m[is.na(paired_test_m)]   <- '-' 
+        paired_test_m[is.na(paired_test_m)]   <- '-'
         print(paired_test_m)
       }
       if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
@@ -299,7 +299,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
   else{
     colnames(data_CP)[1] <- "Sample_ID" ; colnames(ref_CP_data)[1] <- "Sample_ID"
     colnames(data_CP)[2] <- "K" ; colnames(ref_CP_data)[2] <- "K"
-    data_CP <- cbind(data_CP, ref_CP_data$Real)
+    data_CP <- cbind(data_CP, ref_CP_data[, 2])
     data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
     if (is.null(Names)==TRUE){
       Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
@@ -316,7 +316,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
     }
     colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- Names
   }
-  
+
   data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
   if (dim(data_diff_mean_k)[2] > 3){
     for (i in 3:(dim(data_diff_mean_k)[2]-1)){
@@ -336,17 +336,20 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
                                                          axis.text.x=element_text(size=12),  # X axis text
                                                          axis.text.y=element_text(size=12))  # Y axis text
   print(p)
-}  
+  return(p)
+}
+
+###########################################################################
 
 CP_calcul <- function(data, list_K, parallel = TRUE ){
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
-  
-  dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE)) 
+
+  dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
   rownames(dist) <- as.character(data[ ,1])
-  colnames(dist) <- as.character(data[ ,1]) 
-  
+  colnames(dist) <- as.character(data[ ,1])
+
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1])))
@@ -372,7 +375,7 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
     }
     CP
   }
-  
+
   stopCluster(cl)
   return(CP_data)
 }
@@ -384,30 +387,30 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   if (n > 30){
     print("Warning : the calcul could be long !")
   }
-  colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID' 
+  colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
   if (dim(data)[1] != dim(data_ref)[1]){
-    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")  
+    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
     data <- data_m[, 1:dim(data)[2]]
     data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
     data_ref <- cbind(data_m[, 1], data_ref)
   }
   else if( dim(data)[1] == dim(data_ref)[1] & sum(as.character(data[, 1]) == as.character(data_ref[, 1])) != length(data_ref[, 1])){
-    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.") 
+    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
     data <- data_m[, 1:dim(data)[2]]
     data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
     data_ref <- cbind(data_m[, 1], data_ref)
-    
+
   }
-  
+
   CP_data <- CP_calcul(data, list_K)
   CP_ref <- CP_calcul(data_ref, list_K)
   abs_diff <- abs(CP_data$CP - CP_ref$CP)
   abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
   abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
   main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
-  
+
   for (i in 1:n){
     print(i)
     data_shuffle <- data[,2:dim(data)[2]]
@@ -427,12 +430,12 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
     print(i)
     c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,i])
     p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')
-    
+
   }
   c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
   p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
   print(p)
-  
+
   by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
   Means_alea <- rowMeans(by_k_alea)
   print(Means_alea)
@@ -453,29 +456,29 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   else if (sum(data_CP$Sample_ID == data_coords$Sample_ID) != dim(data_CP)[1]){
     print("Warning : Sample_IDs in `data_CP` and `data_coords` differ, or are not in the same order. An inner join will be effected.")
   }
-  
+
   data_m <- merge(data_CP, data_coords, by = 'Sample_ID')
   data_CP <- data_m[, 1:3]
   data_coords <- data_m[, 4:5]
   data_coords <- cbind(data_m[, 1],data_coords)
   colnames(data_coords)[1] <- "Sample_ID"
   data_CP$CP <- as.numeric(data_CP$CP)
-  
+
   #print(data_CP$CP[min(which(data_CP$K == 21)):max(which(data_CP$K == 21))] == data_CP$CP[min(which(data_CP$K == 1)):max(which(data_CP$K == 1))])
-  
+
   L_unique_K <- unique(data_CP$K)
-  
-  while (length(listK)!=0){ 
-    
+
+  while (length(listK)!=0){
+
     #  print(data_CP$CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1]))] == data_CP$CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2]))]  )
     if (listK[1] %in% L_unique_K){
       CP_k1st = data_CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1])),]
       CP_k1st_tm <- merge(CP_k1st, data_coords, by="Sample_ID" )
       Title1 = as.character(paste("k = ", as.character(listK[1])))
-      p1_seq<- plot_ly(CP_k1st_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+      p1_seq<- plot_ly(CP_k1st_tm, x = ~x, y = ~y , type="scatter", mode = "markers",
                        marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
         layout(annotations=  list(x = 0.2 , y = 1.05, text = Title1, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
-      
+
       if( (length(listK)-1) < 1 ){
         if (is.null(Title) == FALSE){
           mytitle <- Title
@@ -491,9 +494,9 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
       else{
         CP_k2nd = data_CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2])),]
         CP_k2nd_tm <- merge(CP_k2nd, data_coords ,by="Sample_ID" )
-        
+
         Title2 = as.character(paste("k = ", as.character(listK[2])))
-        p2_seq<- plot_ly(CP_k2nd_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+        p2_seq<- plot_ly(CP_k2nd_tm, x = ~x, y = ~y , type="scatter", mode = "markers",
                          marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
           layout(annotations=  list(x = 0.2 , y = 1.05, text = Title2, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
       }
@@ -513,7 +516,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         CP_k3rd = data_CP[min(which(data_CP$K == listK[3])):max(which(data_CP$K == listK[3])),]
         CP_k3rd_tm <- merge(CP_k3rd, data_coords, by="Sample_ID" )
         Title3 = as.character(paste("k = ", as.character(listK[3])))
-        p3_seq<- plot_ly(CP_k3rd_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+        p3_seq<- plot_ly(CP_k3rd_tm, x = ~x, y = ~y , type="scatter", mode = "markers",
                          marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
           layout(annotations=  list(x = 0.2 , y = 1.05, text = Title3, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE )
       }
@@ -533,7 +536,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         CP_k4th = data_CP[min(which(data_CP$K == listK[4])):max(which(data_CP$K == listK[4])),]
         CP_k4th_tm <- merge(CP_k4th, data_coords,by="Sample_ID" )
         Title4 = as.character(paste("k = ", as.character(listK[4])))
-        p4_seq<- plot_ly(CP_k4th_tm, x = ~x, y = ~y , type="scatter", mode = "markers", 
+        p4_seq<- plot_ly(CP_k4th_tm, x = ~x, y = ~y , type="scatter", mode = "markers",
                          marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
           layout(annotations=  list(x = 0.2 , y = 1.05, text = Title4, showarrow = F, xref='paper', yref='paper'),  showlegend =FALSE)
         if (is.null(Title) == FALSE){
@@ -546,7 +549,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
           layout(title = mytitle,  margin = 0.04)
         print(p_seq)
         listK <- listK[-c(1:4)]
-        
+
       }
     }
     else{
@@ -583,5 +586,4 @@ L2 = CP_main(list(PCA_coords_df, TM_coords_df) , c(5,10,15), R_meso_df, NULL ,"a
 TEST = CP_map(data_CP = CP_PCA, data_coords = PCA_coords_df, c(1,21,41,61) , Title = NULL)
 
 
-  
-  
+

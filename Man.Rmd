@@ -1,0 +1,129 @@
+---
+title: "Comparisons of dimensionality reduction methods"
+author: "Emilie Mathian"
+date: "6/18/2019"
+output: html_document
+---
+
+# Centrality preservation 
+
+## Centrality preservation main function `CP_main`
+
+### Description 
+ 
+This function allows to calculate CP values for a list a file given as input. If a reference data is defined then CP values are going to be compute and statistic and graphics could be compiuted, in function of user's requests. 
+
+### Usage
+
+`CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE)`
+
+### Arguments
+
+* **l_data** : list of data frame whose structure is :
+
+| Sample_ID | x       | y        | ... |
+|-----------|---------|----------|-----|
+| MYID      | x_coord | y_coords | ... |
+
+These data frames contain coordinates which could be defined in $\mathbb{R^n}$.
+
+* `listK` : list k values
+
+* `dataref` : data frame of reference whose strucuture is the same as define above. If this argument is not defined then statistic and plots cannot be computed.
+
+* `colnames_res_df` : This optional argument allows to specify colnames of the returned data frame and also plots' legend if it computes. If this argument is unsecified then the default values will be set to : V1,V2, ..., Vn (where $n$ is the length of `l_data`). 
+
+* `filename` : This optional arguement allows to defined the filename on which results will be written. If this argument is unspecified then results will be returned and not written. If users choose a filename that ever exits in the current directory a incrementation to the filename will be done.
+
+* `graphics` : This boolean argument allows to computes plots. This option is available only if `dataref` is defined. Indeed the plot is the means by k levels of absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
+
+* `stats` : As previously `stats` option allows to run statistics tests only if `dataref` is defined. If only two data frames were given input via the `l_data` argument then a Wilcoxon test will be computed to compare the distribution of the the means by k levels of absolute differences between CP values calculated for each method. If more than two method are comparated then a Kruskal Wallis test effected, and then the Wilcoxon paired test are effected.
+
+### Details 
+
+CP values' calcul are compueted in parallel according the list of k levels. Furthermore in order to compute the graphic and statistics a inner join between data frames will be done according the samples' ID.
+
+### Value 
+
+According options activated the return list contains the following elements :
+
+* `CP_Data_frame` : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of CP values, more one if `dataref` is defined. This data frame is written is a `filename` is defined.
+
+* `CP_Diff_mean_by_K`: data frame containing the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
+
+* `Kruskal_test` : Results of the Krulkal Wallis test.
+
+* `Wilcoxon_test` : Results of the Wilcoxon test.
+
+* `Paired_wilocoxon_test` : Matrix containing the Wilcoxon paired test p.value.
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+## Centrality preservation graphical description according k levels `CP_graph_by_k`
+
+### Description 
+ 
+This function allows to draw a graphic, representing the means by k levels of the absolute differences between CP values previously calculated and the ones given as references (cf : graphic returned by function`CP_main`).
+
+### Usage
+
+`CP_graph_by_k  <- function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL`
+
+### Arguments
+
+* **data_CP** : data frame containing samples' CP values for $k$ level. This data frame has the same structure as the one returned by the function `CP_main`, *i.e* : 
+
+| Sample_ID | K         | CP1     | CP2     | ... |
+|-----------|-----------|---------|---------|-----|
+| MYID      | 1st_level | CP1_id1 | CP2_id1 | ... |
+
+* **ref_CP_data** : Refence CP values data frame built as described above.
+
+* **Names** : This optional argument allows to specify the legend. If it is not defined `data_CP` colnames will be used.
+
+* **list_col** : This optional argument allows to speficy colors, otherwise a list of colors  previously defined is used.
+
+### Value 
+
+A GGplot is printed and returned.
+
+### See also 
+
+`CP_main`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+## Centrality calculation `CP_calcul`
+
+### Description 
+
+This function allows to calculed centrality values of points which could be defined in $\mathbb{R}^N$. For a point $j$ the centrality formula is : 
+
+$$CP^d_k(j) = \sum_{1\leq i \leq N} k-\rho^d_i(j)$$
+For the scale $k$, and for dimension $d$, $j$'s centrality is defined as the sum of differences between $k$ and $\rho^d_i(j)$, which is the rank of $j$ in the $k-$neighborhood of $i$.
+
+### Usage
+
+`CP_calcul <- function(data, list_K, parallel = TRUE)` 
+
+### Arguments
+
+* **data** : data frame containing samples' ID  and their coordinates in  $\mathbb{R}^N$
+
+* **list_K** : list of k levels according the ones CP values are calculated.
+
+* **parallel** : optional boolean argument that have to be turned to False if to not use a parallel computing.
+
+### Value 
+
+A data frame containing three columns : one  with the samples' Id, another one with corresponding levels k, and a third one with CP values.
+
+### See also 
+
+`CP_main`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE)
+
+
