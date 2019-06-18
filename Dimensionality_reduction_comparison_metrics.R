@@ -34,7 +34,7 @@ cols(23)
 
 ################################ SPATIAL AUTO CORRELATION ANALYSIS #############################################if (!require("rspatial")) devtools::install_github('rspatial/rspatial')
 
-spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
+spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 500, Stat=FALSE){
   # Merging 
   colnames(spatial_data)[1] <- "Sample_ID"
   L_coords_data <- list()
@@ -65,7 +65,7 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
     c_sample_id <- spatial_data[ ,1]
     if (dim(c_data)[2] == 3){
       c_data <- as.matrix(c_data[, 2:dim(c_data)[2]])
-      print(head(c_data))
+      #print(head(c_data))
     }
     for (c_k in 1:length(listK)){
       if (dim(c_data)[2] == 2){
@@ -76,25 +76,42 @@ spatial_cor_main <-function(l_coords_data , spatial_data, listK, nsim = 99){
       for (j in 2:dim(spatial_data)[2]){
         if (dim(c_data)[2] == 2){
           MI <- moran(spatial_data[, j], ww, n=length(ww$neighbours), S0=Szero(ww))
-          MS <- moran.mc(spatial_data[, j], ww, nsim=99)
           MI_array[i,(j-1),c_k] <- MI$I
-          MS_array[i,(j-1),c_k] <- MS$p.value
+          if (Stat != FALSE){
+            print("In Stat != F")
+            MS <- moran.mc(spatial_data[, j], ww, nsim=99)
+            MS_array[i,(j-1),c_k] <- MS$p.value
+          }
         }
         else{
           c_spatial_data <- data.frame("Sample_ID"= as.character(c_sample_id), "att" = spatial_data[, j] )
-          MI_KNN_R <- moran_index_HD(data = c_data, spatial_att = c_spatial_data, K = listK[c_k], merge = NULL)
-          #print(MI)
-          MI_array[i,(j-1),c_k] <- MI_KNN_R$MI  
-          KNN_R <- MI_KNN_R$KNN_R
-          print(KNN_R)
-          MS <- moran_stat_HD(obs_moran_I = MI, data = c_data, k = listK[c_k], nsim = 500, spatial_att = c_spatial_data)
-          MS_array[i,(j-1),c_k] <- MS
-          
+          MI <- moran_index_HD(data = c_data, spatial_att = c_spatial_data, K = listK[c_k], merge = NULL)
+          MI_array[i,(j-1),c_k] <- MI 
+          if (Stat != FALSE){
+            MS <- moran_stat_HD(data = c_data, K = listK[c_k], spatial_att = c_spatial_data, obs_moran_I = MI, nsim = nsim)$p.value
+            MS_array[i,(j-1),c_k] <- MS
+          }
         }
       } 
     }
   }
-  return(list(MI_array, MS_array))
+  for (k in 1:length(listK)){
+    print("in names MI Array")
+    rownames(MI_array) <- names(l_coords_data)
+    colnames(MI_array) <- colnames(spatial_data)[2:dim(spatial_data)[2]]
+  }
+
+  if (Stat != FALSE){
+    for (k in 1:length(listK)){
+      print("in names MS Array")
+      rownames(MS_array) <- names(l_coords_data)
+      colnames(MS_array) <- colnames(spatial_data)[2:dim(spatial_data)[2]]
+    }
+    return(list('MoranIndex' = MI_array,'MoranStat'= MS_array))
+  }
+  else{
+    return(list('MoranIndex' = MI_array))
+  }
 }
 
 
@@ -220,8 +237,8 @@ for (i in 2:dim(r_meso_df)[2]){
   r_meso_df[ ,i] <-as.numeric(r_meso_df[ ,i])
 }
 
-
-
+###########################################################################
+moran_I_scatter_plot <- function()
 
 spatial_att <- read.table("Meso_spatial_cor_att.tsv", header = T)
 pca_coords_xy <- as.matrix(PCA_coords_df[, 2:3])
@@ -248,5 +265,5 @@ test <- moran_index_HD(data= PCA_coords_df, spatial_att= spa_VISTA, K =200, merg
 
  
 r_meso_df[,1]<- as.character(r_meso_df[,1])
-MITEST  <- spatial_cor_main(l_coords_data = list(PCA_coords_df, UMAP_coords_NN230, r_meso_df), spatial_data = spatial_att, listK = c(20, 200), nsim = 101 )
+MITEST  <- spatial_cor_main(l_coords_data = list(PCA_coords_df, UMAP_coords_NN230, r_meso_df), spatial_data = spatial_att, listK = c(20, 200), nsim = 31, Stat = TRUE )
 spatial_att_for_sim <- data.frame('Sample_ID' = spatial_att$Sample_ID,  'vista'= spatial_att$VISTA)
