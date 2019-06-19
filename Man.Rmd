@@ -450,8 +450,6 @@ According options activated the return list contains the following elements :
 
 ## Calcul of Moran Indexes for high dimensional data `moran_index_HD `
 
-moran_stat_HD <- function(data, K, spatial_att, obs_moran_I, nsim = 99)
-
 ### Description 
  
 This function allows to calculate Moran Indexes for high dimensional data by generalizing the process effected in 2D. In order to get Moran Indexes the $k-$nearest neighbors are defined for each sample according the brute method of knn algorithm. This $k-$nearest neighbors is use to define the spatial weights matrix. Then Moran Indexes are computed classically. 
@@ -530,4 +528,42 @@ Moran Significance test p.value.
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
-moran_I_scatter_plot <- function(data, Xlab = NULL, Ylab=NULL, Title= NULL)
+
+## Graphic of Moran Indexes for each variable and each method `moran_I_scatter_plot`
+
+### Description 
+ 
+This function allows to displays the plot of Moran Indexes for each variable and and each method, a scatter plot is generated if Moran Indexes are defined for only one k level otherwise boxplot are generated. 
+
+### Usage
+
+`moran_I_scatter_plot <- function(data, Xlab = NULL, Ylab=NULL, Title= NULL)`
+
+### Arguments
+
+* **data** : array containing Moran Indexes whose the structure is the following :
+
+|         | Varaible1 | Varaible2 | Varaible3 | ... |
+|---------|-----------|-----------|-----------|-----|
+| Method1 | MI_v1_m1  | MI_v2_m1  | MI_v3_m1  | ... |
+| Method2 | MI_v1_m2  | ...       | ...       | ... |
+| ...     | ...       | ...       | ...       | ... |
+
+
+This array is in $|k|$ dimension, according the number of $k$ level for which Moran Indexes where calculated.
+
+
+* **Xlab** : this optional argument is used to define the x-axis label.
+
+* **Ylab** : this optional argument is used to define the y-axis label.
+
+* **Title** : This optional argument is used to define the plot title.
+
+### Value 
+
+This function return a ggplot object.
+
+### See also
+
+`moran_I_main`
+
