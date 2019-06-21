@@ -1,31 +1,3 @@
-library(foreach)
-library(doParallel)
-library(ggplot2)
-library(RColorBrewer)
-library(plotly)
-
-# -----------
-# My colors :
-# -----------
-
-custom.col <- c('#2ECC71', # clear green
-                "#33691E", # olive green
-                '#1E90FF', # dark turquoise
-                "#1A237E", #  dark blue
-                '#6C3483', #  dar purple
-                '#D81B60', # Hot pink
-                "#D16103", # dark orange
-                "#FFD700", # gold
-                '#B22222', # brick red
-                '#626567', # dark gray
-                "#17202A") # dark gray-blue
-custom.col <<- append(custom.col, brewer.pal(n = 12, name = "Paired"))
-cols <- function(a) image(1:23, 1, as.matrix(1:23), col=custom.col, axes=FALSE , xlab="", ylab="")
-a <- 1:23
-cols(23)
-
-# _________________
-
 
 # -----------------
 #  Tools function :
@@ -37,10 +9,10 @@ Merging_function <- function(l_data, dataRef){
     c_data <- l_data[[i]]
     colnames(c_data)[1] <- "Sample_ID"
     if (dim(c_data)[1] != dim(dataRef)[1]){
-      print(paste("Warning : the data frame[" ,  i ,")] doesn't have the same number of lines than `dataRef`. An inner join will be effecte") )
+      warning(paste("The data frame[" ,  i ,")] doesn't have the same number of lines than `dataRef`. An inner join will be effecte") )
     }
     else if(sum(c_data[, 1] == dataRef[, 1]) != length(c_data[, 1])){
-      print(paste("Warning : Sample_IDs in data frame [", i,"] and dataRef are not the same, or are not in the same order. An inner join will be effected.", sep =""))
+      warning(paste("Sample_IDs in data frame [", i,"] and dataRef are not the same, or are not in the same order. An inner join will be effected.", sep =""))
     }
     data_m <- merge(dataRef, c_data, by = "Sample_ID")
     dataRef <- dataRef[, 1:dim(dataRef)[2]]
@@ -62,8 +34,8 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
   # _________________________________________
-
-
+  
+  
   # __________ Distance matrices ____________
   l_dist = list()
   for (i in 1:length(l_data)){
@@ -79,44 +51,53 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     colnames(distRef) <- as.character(dataRef[ ,1])
   }
   # _________________________________________
-
+  
   #_____________ Calculs of CP values _______
-
+  
   list_CP <- list()
   len_list_CP <- list()
   for (I in 1:length(l_data)){
+    print("HEre")
     c_data <- l_data[[I]]
     c_dist <- l_dist[[I]]
     #CP_c_data <- data.frame()
-    CP_c_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
+    #CP_c_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
+    for (i in 1:length(list_K))
       k = list_K[i]
-      CP <- data.frame("Sample_ID" = as.character(c_data[, 1]), "CP" = rep(0, length(c_data[, 1])), "K"=rep(k, length(c_data[, 1])))
+      CP <- data.frame("Sample_ID" = as.character(c_data[, 1]), "CP" = rep(0, length(c_data[, 1])), "K"=rep(k, length(c_data[, 1]))) ############# 0 bizzard
       N <- matrix(ncol = k, nrow = dim(c_data)[1])
       rownames(N) <- c_data[, 1] ; colnames(N) <- seq(k)
       for (j in 1:dim(c_dist)[1]){
-        N_dist <- list(c_dist[i, ])[[1]]
+        N_dist <- list(c_dist[j, ])[[1]]
         names(N_dist) <- c_data[ ,1]
         N_dist <- sort(N_dist)
+        print("N_dist")
+        print(N_dist) #############################
         KNeighbors_N <- as.character(names(N_dist)[1:k])
         N[j,] <- KNeighbors_N
+        print(N[j,]) ##################@
       }
+      print("N")
+      print(N)
       for (l in 1:dim(N)[1]){
         c_point <- rownames(N)[l]
         CP_j <- 0
-        for(j in 1:dim(N)[1]){
-          neighbors_j <- list(N[l, ])[[1]]
+        for(J in 1:dim(N)[1]){
+          neighbors_j <- list(N[J, ])[[1]]
           if (c_point %in% neighbors_j ){
             CP_j = CP_j + (k - match(c_point,neighbors_j))
           }
+
         }
         CP[l,2] =  CP_j
       }
-      CP
+      CP_c_data <- rbind(CP_c_data, CP)
+     # CP
     }
     list_CP[[I]] <- CP_c_data
     len_list_CP[[I]] <- length(CP_c_data[ ,1])
   }
-
+  
   if (is.null(dataRef) == FALSE){
     CPRef <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
       k = list_K[i]
@@ -124,7 +105,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       N <- matrix(ncol = k, nrow = dim(dataRef)[1])
       rownames(N) <- dataRef[, 1] ; colnames(N) <- seq(k)
       for (j in 1:dim(distRef)[1]){
-        N_dist <- list(distRef[i, ])[[1]]
+        N_dist <- list(distRef[j, ])[[1]]
         names(N_dist) <- dataRef[ ,1]
         N_dist <- sort(N_dist)
         KNeighbors_N <- as.character(names(N_dist)[1:k])
@@ -133,8 +114,8 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       for (l in 1:dim(N)[1]){
         c_point <- rownames(N)[l]
         CP_j <- 0
-        for(j in 1:dim(N)[1]){
-          neighbors_j <- list(N[l, ])[[1]]
+        for(J in 1:dim(N)[1]){
+          neighbors_j <- list(N[J, ])[[1]]
           if (c_point %in% neighbors_j ){
             CP_j = CP_j + (k - match(c_point,neighbors_j))
           }
@@ -147,9 +128,9 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     len_list_CP[[I+1]] <- length(CPRef[ ,1])
   }
   # _________________________________________
-
+  
   stopCluster(cl)
-
+  
   # __________________ Writing option and CP Data Frame __________
   if (length(unique(len_list_CP))==1){
     df_to_write <- data.frame('Sample_ID' = list_CP[[1]]$Sample_ID, 'K' = list_CP[[1]]$K )
@@ -172,7 +153,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     }
     colnames(df_to_write)[3:length(colnames(df_to_write))] <- colnames_res_df
   }
-
+  
   if (is.null(filename) == FALSE) {
     if (file.exists(as.character(filename))){
       print("Warning : The filename gives as argument exist in the current directory, this name will be 'incremented'.")
@@ -185,8 +166,8 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     write.table(df_to_write, file = filename, sep = "\t")
   }
   # ____________________________________________________
-
-
+  
+  
   # ___________________  NO Stats, NO graphic, NO Ref _____
   if ( is.null(dataRef) == TRUE){
     if (graphics == TRUE | stats == TRUE ){
@@ -228,7 +209,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
                                                              axis.title.y=element_text(size=12, face="bold"),  # Y axis title
                                                              axis.text.x=element_text(size=12),  # X axis text
                                                              axis.text.y=element_text(size=12))  # Y axis text
-
+      
       print(p)
       if (dim(data_diff_mean_k)[2] == 2){ # Only one method was define
         if (stats == TRUE){
@@ -250,7 +231,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       # Kruskal test
       else{
         ks_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, 2], 'method'= rep(colnames(data_diff_mean_k)[2], dim(data_diff_mean_k)[1]))
-
+        
         for (i in 3:dim(data_diff_mean_k)[2]){
           c_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, i], 'method'=rep(colnames(data_diff_mean_k)[i], dim(data_diff_mean_k)[1]))
           ks_df <- rbind(ks_df, c_df )
@@ -287,8 +268,11 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   }
 }
 ###########################################################################################################
+List_projection <- list(data.frame(acp_fig1_li_df), data.frame(umap_md01_res_df))
 
+gene_expr_df_filter <- merge(gene_expr_df, acp_fig1_li_df[,1], by = "Sample_ID")
 
+Main_CP_res <- CP_main(l_data = List_projection , list_K = c(20,100) , dataRef = gene_expr_df_filter , colnames_res_df = c("pca", "umap_md=0.1") , filename = NULL , graphics = TRUE, stats = TRUE)
 
 ###########################################################################################################
 CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
@@ -299,7 +283,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
   else{
     colnames(data_CP)[1] <- "Sample_ID" ; colnames(ref_CP_data)[1] <- "Sample_ID"
     colnames(data_CP)[2] <- "K" ; colnames(ref_CP_data)[2] <- "K"
-    data_CP <- cbind(data_CP, ref_CP_data[, 2])
+    data_CP <- cbind(data_CP, ref_CP_data[, 3])
     data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
     if (is.null(Names)==TRUE){
       Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
@@ -335,13 +319,16 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
                                                          axis.title.y=element_text(size=12, face="bold"),  # Y axis title
                                                          axis.text.x=element_text(size=12),  # X axis text
                                                          axis.text.y=element_text(size=12))  # Y axis text
-  print(p)
+ 
   return(p)
 }
 
 ###########################################################################
 
 CP_calcul <- function(data, list_K, parallel = TRUE ){
+
+  custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
+  
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
@@ -356,7 +343,7 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
     N <- matrix(ncol = k, nrow = dim(data)[1])
     rownames(N) <- data[, 1] ; colnames(N) <- seq(k)
     for (j in 1:dim(dist)[1]){
-      N_dist <- list(dist[i, ])[[1]]
+      N_dist <- list(dist[j, ])[[1]]
       names(N_dist) <- data[ ,1]
       N_dist <- sort(N_dist)
       KNeighbors_N <- as.character(names(N_dist)[1:k])
@@ -365,8 +352,8 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
     for (l in 1:dim(N)[1]){
       c_point <- rownames(N)[l]
       CP_j <- 0
-      for(j in 1:dim(N)[1]){
-        neighbors_j <- list(N[l, ])[[1]]
+      for(J in 1:dim(N)[1]){
+        neighbors_j <- list(N[J, ])[[1]]
         if (c_point %in% neighbors_j ){
           CP_j = CP_j + (k - match(c_point,neighbors_j))
         }
@@ -385,18 +372,18 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
 ###########################################################################################################
 CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   if (n > 30){
-    print("Warning : the calcul could be long !")
+    warning(" The calcul could be long !")
   }
   colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
   if (dim(data)[1] != dim(data_ref)[1]){
-    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
+    warning(" Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
     data <- data_m[, 1:dim(data)[2]]
     data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
     data_ref <- cbind(data_m[, 1], data_ref)
   }
   else if( dim(data)[1] == dim(data_ref)[1] & sum(as.character(data[, 1]) == as.character(data_ref[, 1])) != length(data_ref[, 1])){
-    print("Warning : Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
+    warning("Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
     data <- data_m[, 1:dim(data)[2]]
     data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
@@ -434,11 +421,18 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   }
   c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
   p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
+  p <- p +  labs(title="Centrality preservation signicance test",
+                 y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                                                         plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                                                         plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                                                         axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                                                         axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                                                         axis.text.x=element_text(size=12),  # X axis text
+                                                         axis.text.y=element_text(size=12))  # Y axis text
   print(p)
 
   by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
   Means_alea <- rowMeans(by_k_alea)
-  print(Means_alea)
   WT  = wilcox.test( Means_alea,main_diff_df[ ,1])
   print(WT)
   return(WT)
@@ -553,7 +547,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
       }
     }
     else{
-      print( paste("Warning : CP values for this K level (", listK[1],") was not computed."))
+      warning( paste("Warning : CP values for this K level (", listK[1],") was not computed."))
       if (length(listK) == 1){
         listK <- list()
       }
@@ -562,28 +556,5 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
       }
     }
   }
+  return(p_seq)
 }
-
-PCA_coords_df = read.table("Meso_pca_coords.tab", sep="\t",header = T)
-TM_coords_df= read.table("Meso_tm_coords_v2.tab", sep="\t", header = T)
-UMAP_coords_NN230 <- read.table( "umap_coords_nn230.tab" ,  sep = "\t", dec="." , header = TRUE,   quote="")
-R_meso_df = read.table("feature_data_with_lv_2.tsv", sep="\t", header = T)
-R_meso_df = t(R_meso_df)
-colnames(R_meso_df) <- R_meso_df[1, ]
-R_meso_df = R_meso_df[-1, ]
-R_meso_df = cbind(rownames(R_meso_df), R_meso_df)
-colnames(R_meso_df)[1] <- "Sample_ID"
-rownames(R_meso_df) <- NULL
-R_meso_df <-data.frame(R_meso_df)
-R_meso_df[, 1] <- as.character(R_meso_df[, 1])
-
-
-
-L1 = CP_main(list(PCA_coords_df) , seq(from = 1, to = 284, by = 20), R_meso_df, NULL ,"aname", TRUE , TRUE)
-
-L2 = CP_main(list(PCA_coords_df, TM_coords_df) , c(5,10,15), R_meso_df, NULL ,"aname", TRUE , TRUE)
-
-TEST = CP_map(data_CP = CP_PCA, data_coords = PCA_coords_df, c(1,21,41,61) , Title = NULL)
-
-
-
