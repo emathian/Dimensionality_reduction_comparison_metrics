@@ -57,42 +57,36 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   list_CP <- list()
   len_list_CP <- list()
   for (I in 1:length(l_data)){
-    print("HEre")
     c_data <- l_data[[I]]
     c_dist <- l_dist[[I]]
     #CP_c_data <- data.frame()
-    #CP_c_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
-    for (i in 1:length(list_K))
+    CP_c_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
+    #for (i in 1:length(list_K)){
       k = list_K[i]
-      CP <- data.frame("Sample_ID" = as.character(c_data[, 1]), "CP" = rep(0, length(c_data[, 1])), "K"=rep(k, length(c_data[, 1]))) ############# 0 bizzard
+      CP <- data.frame("Sample_ID" = as.character(c_data[, 1]), "CP" = rep(0, length(c_data[, 1])), "K"=rep(k, length(c_data[, 1])))
       N <- matrix(ncol = k, nrow = dim(c_data)[1])
       rownames(N) <- c_data[, 1] ; colnames(N) <- seq(k)
       for (j in 1:dim(c_dist)[1]){
         N_dist <- list(c_dist[j, ])[[1]]
         names(N_dist) <- c_data[ ,1]
         N_dist <- sort(N_dist)
-        print("N_dist")
-        print(N_dist) #############################
         KNeighbors_N <- as.character(names(N_dist)[1:k])
         N[j,] <- KNeighbors_N
-        print(N[j,]) ##################@
       }
-      print("N")
-      print(N)
+      print("head de N")
+      print(head(N))
       for (l in 1:dim(N)[1]){
-        c_point <- rownames(N)[l]
+        c_point <- rownames(N)[l] # select a point J
         CP_j <- 0
-        for(J in 1:dim(N)[1]){
-          neighbors_j <- list(N[J, ])[[1]]
+        for(j in 1:dim(N)[1]){ # pour chaque i
+          neighbors_j <- list(N[j, ])[[1]] # considerer le kème viosinage de i
           if (c_point %in% neighbors_j ){
             CP_j = CP_j + (k - match(c_point,neighbors_j))
           }
-
         }
         CP[l,2] =  CP_j
       }
-      CP_c_data <- rbind(CP_c_data, CP)
-     # CP
+      CP
     }
     list_CP[[I]] <- CP_c_data
     len_list_CP[[I]] <- length(CP_c_data[ ,1])
@@ -114,8 +108,8 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       for (l in 1:dim(N)[1]){
         c_point <- rownames(N)[l]
         CP_j <- 0
-        for(J in 1:dim(N)[1]){
-          neighbors_j <- list(N[J, ])[[1]]
+        for(j in 1:dim(N)[1]){
+          neighbors_j <- list(N[j, ])[[1]]
           if (c_point %in% neighbors_j ){
             CP_j = CP_j + (k - match(c_point,neighbors_j))
           }
@@ -274,6 +268,20 @@ gene_expr_df_filter <- merge(gene_expr_df, acp_fig1_li_df[,1], by = "Sample_ID")
 
 Main_CP_res <- CP_main(l_data = List_projection , list_K = c(20,100) , dataRef = gene_expr_df_filter , colnames_res_df = c("pca", "umap_md=0.1") , filename = NULL , graphics = TRUE, stats = TRUE)
 
+
+CP_K = Main_CP_res[[1]][which(Main_CP_res[[1]]$K ==20  | Main_CP_res[[1]]$K ==100),]
+CP_PCA = CP_K[,1:3]
+CP_map(CP_PCA , acp_fig1_li_df, list(20,100), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
+
+
+CP_K_UMAP =CP_K[,1:2]
+CP_K_UMAP = cbind(CP_K_UMAP ,"UMAP_CP" =CP_K[,4])
+head(CP_K_UMAP)
+CP_map(CP_K_UMAP ,  data.frame(umap_md07_res_df), list(20,100), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
+
+CP_map(CP_K_R, acp_fig1_li_df, list(66,111), Title = 'Centrality preservation map for PCA')
+
+
 ###########################################################################################################
 CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
   if (dim(data_CP)[1] != dim(ref_CP_data)[1]){
@@ -326,28 +334,30 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
 ###########################################################################
 
 CP_calcul <- function(data, list_K, parallel = TRUE ){
-
   custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
   
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
-
+  
   dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
-  rownames(dist) <- as.character(data[ ,1])
-  colnames(dist) <- as.character(data[ ,1])
+  rownames(dist) <- data[ ,1][[1]]
+  colnames(dist) <- data[ ,1][[1]]
 
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
-    CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1])))
+    print(k)
+    CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
+    print(dim(CP))
     N <- matrix(ncol = k, nrow = dim(data)[1])
     rownames(N) <- data[, 1] ; colnames(N) <- seq(k)
-    for (j in 1:dim(dist)[1]){
-      N_dist <- list(dist[j, ])[[1]]
-      names(N_dist) <- data[ ,1]
-      N_dist <- sort(N_dist)
-      KNeighbors_N <- as.character(names(N_dist)[1:k])
+    for (j in 1:dim(dist)[1]){ 
+      N_dist <- data.frame("Sample_ID" = as.character(data[, 1]), "dist" = list(dist[j, ])[[1]] ) 
+      print('N_dist after sorting')
+      N_dist <- N_dist[order(N_dist$dist),]
+      KNeighbors_N <- as.character(N_dist$Sample_ID[1:k])
       N[j,] <- KNeighbors_N
+      
     }
     for (l in 1:dim(N)[1]){
       c_point <- rownames(N)[l]
@@ -359,14 +369,38 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
         }
       }
       CP[l,2] =  CP_j
+      print(CP_j)
     }
     CP
   }
-
+  
   stopCluster(cl)
   return(CP_data)
 }
 ###########################################################################################################
+#library(doSNOW)
+
+
+
+###########################################################################################################
+
+
+Main_CP_res <- CP_calcul(acp_fig1_li_df , list_K = c(100) )
+
+CP_K = Main_CP_res[which(Main_CP_res$K ==100 ),]
+
+CP_K = data.frame("Sample_ID" = CP_K$Sample_ID, "K" = CP_K$K , "CP" = CP_K$CP)
+#CP_PCA = CP_K[,1:3]
+CP_map(CP_K , acp_fig1_li_df, list(100), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
+
+
+CP_K_UMAP =CP_K[,1:2]
+CP_K_UMAP = cbind(CP_K_UMAP ,"UMAP_CP" =CP_K[,4])
+head(CP_K_UMAP)
+CP_map(CP_K_UMAP ,  data.frame(umap_md07_res_df), list(20), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
+
+CP_map(CP_K_R, acp_fig1_li_df, list(66,111), Title = 'Centrality preservation map for PCA')
+
 
 
 ###########################################################################################################
@@ -457,7 +491,7 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   data_coords <- cbind(data_m[, 1],data_coords)
   colnames(data_coords)[1] <- "Sample_ID"
   data_CP$CP <- as.numeric(data_CP$CP)
-
+  print(dim(data_CP))
   #print(data_CP$CP[min(which(data_CP$K == 21)):max(which(data_CP$K == 21))] == data_CP$CP[min(which(data_CP$K == 1)):max(which(data_CP$K == 1))])
 
   L_unique_K <- unique(data_CP$K)
