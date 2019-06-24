@@ -1,3 +1,19 @@
+custom.col <- c('#2ECC71', # clear green
+                "#33691E", # olive green
+                '#1E90FF', # dark turquoise
+                "#1A237E", #  dark blue
+                '#6C3483', #  dar purple
+                '#D81B60', # Hot pink
+                "#D16103", # dark orange
+                "#FFD700", # gold
+                '#B22222', # brick red
+                '#626567', # dark gray
+                "#17202A") # dark gray-blue
+custom.col <<- append(custom.col, brewer.pal(n = 12, name = "Paired"))
+cols <- function(a) image(1:23, 1, as.matrix(1:23), col=custom.col, axes=FALSE , xlab="", ylab="")
+a <- 1:23
+cols(23)
+
 
 # -----------------
 #  Tools function :
@@ -29,11 +45,7 @@ Merging_function <- function(l_data, dataRef){
 
 ###########################################################################################################
 CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
-  # __________ Clusters initialization ______
-  no_cores <- detectCores() # - 1
-  cl <- makeCluster(no_cores)
-  registerDoParallel(cl)
-  # _________________________________________
+
   
   
   # __________ Distance matrices ____________
@@ -56,75 +68,20 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   
   list_CP <- list()
   len_list_CP <- list()
+
   for (I in 1:length(l_data)){
     c_data <- l_data[[I]]
     c_dist <- l_dist[[I]]
-    #CP_c_data <- data.frame()
-    CP_c_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
-    #for (i in 1:length(list_K)){
-      k = list_K[i]
-      CP <- data.frame("Sample_ID" = as.character(c_data[, 1]), "CP" = rep(0, length(c_data[, 1])), "K"=rep(k, length(c_data[, 1])))
-      N <- matrix(ncol = k, nrow = dim(c_data)[1])
-      rownames(N) <- c_data[, 1] ; colnames(N) <- seq(k)
-      for (j in 1:dim(c_dist)[1]){
-        N_dist <- list(c_dist[j, ])[[1]]
-        names(N_dist) <- c_data[ ,1]
-        N_dist <- sort(N_dist)
-        KNeighbors_N <- as.character(names(N_dist)[1:k])
-        N[j,] <- KNeighbors_N
-      }
-      print("head de N")
-      print(head(N))
-      for (l in 1:dim(N)[1]){
-        c_point <- rownames(N)[l] # select a point J
-        CP_j <- 0
-        for(j in 1:dim(N)[1]){ # pour chaque i
-          neighbors_j <- list(N[j, ])[[1]] # considerer le kème viosinage de i
-          if (c_point %in% neighbors_j ){
-            CP_j = CP_j + (k - match(c_point,neighbors_j))
-          }
-        }
-        CP[l,2] =  CP_j
-      }
-      CP
-    }
+    CP_c_data <- CP_calcul(data = c_data, list_K = list_K, parallel = TRUE)
     list_CP[[I]] <- CP_c_data
     len_list_CP[[I]] <- length(CP_c_data[ ,1])
   }
-  
   if (is.null(dataRef) == FALSE){
-    CPRef <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
-      k = list_K[i]
-      CPRef_k <- data.frame("Sample_ID" = as.character(dataRef[, 1]), "CP" = rep(0, length(dataRef[, 1])), "K"=rep(k, length(dataRef[, 1])))
-      N <- matrix(ncol = k, nrow = dim(dataRef)[1])
-      rownames(N) <- dataRef[, 1] ; colnames(N) <- seq(k)
-      for (j in 1:dim(distRef)[1]){
-        N_dist <- list(distRef[j, ])[[1]]
-        names(N_dist) <- dataRef[ ,1]
-        N_dist <- sort(N_dist)
-        KNeighbors_N <- as.character(names(N_dist)[1:k])
-        N[j,] <- KNeighbors_N
-      }
-      for (l in 1:dim(N)[1]){
-        c_point <- rownames(N)[l]
-        CP_j <- 0
-        for(j in 1:dim(N)[1]){
-          neighbors_j <- list(N[j, ])[[1]]
-          if (c_point %in% neighbors_j ){
-            CP_j = CP_j + (k - match(c_point,neighbors_j))
-          }
-        }
-        CPRef_k[l,2] =  CP_j
-      }
-      CPRef_k
-    }
+    CPRef <- CP_calcul(data = dataRef, list_K = list_K, parallel = TRUE)
     list_CP[[I+1]] <- CPRef
     len_list_CP[[I+1]] <- length(CPRef[ ,1])
-  }
-  # _________________________________________
-  
-  stopCluster(cl)
-  
+  }  
+    
   # __________________ Writing option and CP Data Frame __________
   if (length(unique(len_list_CP))==1){
     df_to_write <- data.frame('Sample_ID' = list_CP[[1]]$Sample_ID, 'K' = list_CP[[1]]$K )
@@ -134,7 +91,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     }
   }
   else{
-    print("Warning :  Input data frames don't the same number of lines a inner join will be done. ")
+   warning("Input data frames don't the same number of lines a inner join will be done. ")
     df_to_write <- data.frame("Sample_ID"=list_CP[[1]]$Sample_ID, 'K'= list_CP[[1]]$K, 'V1'= list_CP[[1]]$CP)
     for (i in 2:length(list_CP)){
       df_to_write <- merge(df_to_write, list_CP[[i]],  by=c('Sample_ID'))
@@ -262,11 +219,12 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   }
 }
 ###########################################################################################################
+
 List_projection <- list(data.frame(acp_fig1_li_df), data.frame(umap_md01_res_df))
 
 gene_expr_df_filter <- merge(gene_expr_df, acp_fig1_li_df[,1], by = "Sample_ID")
 
-Main_CP_res <- CP_main(l_data = List_projection , list_K = c(20,100) , dataRef = gene_expr_df_filter , colnames_res_df = c("pca", "umap_md=0.1") , filename = NULL , graphics = TRUE, stats = TRUE)
+Main_CP_res <- CP_main(l_data = List_projection , list_K = c(100) , dataRef = gene_expr_df_filter , colnames_res_df = c("pca", "umap_md=0.1") , filename = NULL , graphics = TRUE, stats = TRUE)
 
 
 CP_K = Main_CP_res[[1]][which(Main_CP_res[[1]]$K ==20  | Main_CP_res[[1]]$K ==100),]
@@ -335,25 +293,25 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
 
 CP_calcul <- function(data, list_K, parallel = TRUE ){
   custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
-  
+  print(str(data))
+  print(head(data))
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
+  #cl <- makeCluster(4, outfile="")
+  #registerDoSNOW(cl)
   
   dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
-  rownames(dist) <- data[ ,1][[1]]
-  colnames(dist) <- data[ ,1][[1]]
-
+  rownames(dist) <- data[ ,1]#[[1]]
+  colnames(dist) <- data[ ,1]#[[1]]
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
     print(k)
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
-    print(dim(CP))
     N <- matrix(ncol = k, nrow = dim(data)[1])
     rownames(N) <- data[, 1] ; colnames(N) <- seq(k)
     for (j in 1:dim(dist)[1]){ 
       N_dist <- data.frame("Sample_ID" = as.character(data[, 1]), "dist" = list(dist[j, ])[[1]] ) 
-      print('N_dist after sorting')
       N_dist <- N_dist[order(N_dist$dist),]
       KNeighbors_N <- as.character(N_dist$Sample_ID[1:k])
       N[j,] <- KNeighbors_N
@@ -369,7 +327,6 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
         }
       }
       CP[l,2] =  CP_j
-      print(CP_j)
     }
     CP
   }
