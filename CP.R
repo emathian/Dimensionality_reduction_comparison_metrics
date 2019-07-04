@@ -10,9 +10,9 @@ custom.col <- c('#2ECC71', # clear green
                 '#626567', # dark gray
                 "#17202A") # dark gray-blue
 custom.col <<- append(custom.col, brewer.pal(n = 12, name = "Paired"))
-cols <- function(a) image(1:23, 1, as.matrix(1:23), col=custom.col, axes=FALSE , xlab="", ylab="")
-a <- 1:23
-cols(23)
+#cols <- function(a) image(1:23, 1, as.matrix(1:23), col=custom.col, axes=FALSE , xlab="", ylab="")
+#a <- 1:23
+#cols(23)
 
 
 # -----------------
@@ -46,7 +46,6 @@ Merging_function <- function(l_data, dataRef){
 ###########################################################################################################
 CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
   custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
-  
   # __________ Distance matrices ____________
   l_dist = list()
   for (i in 1:length(l_data)){
@@ -106,7 +105,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   
   if (is.null(filename) == FALSE) {
     if (file.exists(as.character(filename))){
-      print("Warning : The filename gives as argument exist in the current directory, this name will be 'incremented'.")
+      warning("The filename gives as argument exist in the current directory, this name will be 'incremented'.")
       c = 2
       while(file.exists(as.character(filename))){
         filename <- paste(filename, c, sep = "" )
@@ -125,26 +124,24 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     }
     return(list("CP_Data_frame" = cp_df))
   }
-  else{ # (is.null(dataRef) == FALSE)
+  else{ 
     data_CP <- df_to_write
     data_diff_mean_k <- data.frame("k" =  unique(data_CP$K))
     for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
-      abs_diff <- abs(as.numeric(data_CP[, I]) - as.numeric(data_CP[, dim(data_CP)[2]]))
+      abs_diff <- abs(scale(as.numeric(data_CP[, I])) - scale(as.numeric(data_CP[, dim(data_CP)[2]])))
       c_abs_diff_df <- data.frame("abs_diff" = abs_diff, 'K' = data_CP$K)
       abs_diff_k <- tapply(c_abs_diff_df$abs_diff, c_abs_diff_df$K, mean)
       data_diff_mean_k <- cbind(data_diff_mean_k, abs_diff_k)
     }
     colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- colnames(data_CP)[3:(dim(data_CP)[2]-1)]
-    #print('data_diff_mean_k')
-   # print(head(data_diff_mean_k))
     if (graphics == FALSE & stats == FALSE){
       return(list("CP_Data_frame" = data_CP,'CP_Diff_mean_by_K' = data_diff_mean_k))
     }
     if (graphics == TRUE){
-      data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = scale(data_diff_mean_k[, 2]), 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
+      data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
       if (dim(data_diff_mean_k)[2] > 2){
         for (i in 3:(dim(data_diff_mean_k)[2])){
-          c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = scale(data_diff_mean_k[, i]), 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
+          c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
           data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
         }
       }
@@ -152,7 +149,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
         scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
       p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
-                     y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                     y=TeX("$DCP_k =\\frac{1}{N} \\sum{i=1}^N |CP_i^2 -CP_i^N |$"), x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                              plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                              plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
                                                              axis.title.x=element_text(size=12, face="bold"),  # X axis title
@@ -163,7 +160,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       print(p)
       if (dim(data_diff_mean_k)[2] == 2){ # Only one method was define
         if (stats == TRUE){
-          print('Warning : Statistics cannot be compute if only one method was given as input e.g `l_data` contains only one element.')
+          warning('Statistics cannot be compute if only one method was given as input e.g `l_data` contains only one element.')
         }
         return(list("CP_Data_frame" =  data_CP,'CP_Diff_mean_by_K' = data_diff_mean_k, "Graphic" = p))
       }
@@ -178,7 +175,6 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
         WT =wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[ ,3], paired = TRUE)
         print(WT)
       }
-      # Kruskal test
       else{
         pwt_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, 2], 'method'= rep(colnames(data_diff_mean_k)[2], dim(data_diff_mean_k)[1]))
         
@@ -187,7 +183,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
           pwt_df <- rbind(pwt_df, c_df )
         }
         ####################### CHECK THIS
-        paired_test_m  <- pairwise.wilcox.test(pwt_df$mean_diff_cp, pwt_df$method,  p.adj = "bonf",  paired = TRUE)$p.value
+        paired_test_m  <- pairwise.wilcox.test(pwt_df$mean_diff_cp, pwt_df$method,  p.adj = "holm",  paired = TRUE)$p.value
      
       }
       if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
@@ -207,31 +203,11 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
 }
 ###########################################################################################################
 
-#List_projection <- list(data.frame(acp_fig1_li_df), data.frame(umap_md01_res_df), data.frame(umap_md03_res_df))
-
-#gene_expr_df_filter <- merge(gene_expr_df, acp_fig1_li_df[,1], by = "Sample_ID")
-
-#Main_CP_res <- CP_main(l_data = List_projection , list_K = seq(from= 1, to = 284, by = 5) , dataRef = gene_expr_df_filter , colnames_res_df = c("pca", "umap_md=0.1", "umap_md=0.3", "umap_md=0.5","umap_md=0.7", "umap_md=0.9") , filename = NULL , graphics = TRUE, stats = TRUE)
-#Main_CP_res <- CP_main(l_data = List_projection , list_K = c(10,100,120,240) , dataRef = gene_expr_df_filter , colnames_res_df = c("pca", "umap_md=0.1") , filename = NULL , graphics = TRUE, stats = TRUE)
-
-
-#CP_K = Main_CP_res[[1]][which(Main_CP_res[[1]]$K ==20  | Main_CP_res[[1]]$K ==100),]
-#CP_PCA = CP_K[,1:3]
-#CP_map(CP_PCA , acp_fig1_li_df, list(20,100), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
-
-
-#CP_K_UMAP =CP_K[,1:2]
-#CP_K_UMAP = cbind(CP_K_UMAP ,"UMAP_CP" =CP_K[,4])
-#head(CP_K_UMAP)
-#CP_map(CP_K_UMAP ,  data.frame(umap_md07_res_df), list(20,100), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
-
-#CP_map(CP_K_R, acp_fig1_li_df, list(66,111), Title = 'Centrality preservation map for PCA')
-
 
 ###########################################################################################################
-CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
+CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL, log=FALSE){
   if (dim(data_CP)[1] != dim(ref_CP_data)[1]){
-    print("Warning : Input data frames don't have the same number of line")
+    warning("Input data frames don't have the same number of line.")
     break
   }
   else{
@@ -244,7 +220,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
       Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
     }
     else if (length(Names) != dim(data_CP)[2]-3){
-      print("Warning :  The length of the list of Names is inconsistant in regard of the length of the input data")
+      warning("The length of the list of Names is inconsistant in regard of the length of the input data.")
       Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
     }
     for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
@@ -264,9 +240,10 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
     }
   }
   theme_set(theme_bw())
-  p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
-    scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
-  p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
+  if (log==FALSE){
+    p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
+      scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
+    p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
                  y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                          plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                          plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
@@ -274,7 +251,19 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL){
                                                          axis.title.y=element_text(size=12, face="bold"),  # Y axis title
                                                          axis.text.x=element_text(size=12),  # X axis text
                                                          axis.text.y=element_text(size=12))  # Y axis text
- 
+  }
+  else {
+    p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=log(diff_cp),  color=Method)) + geom_line() + geom_point()+
+      scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
+    p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
+                   y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                                                           plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                                                           plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                                                           axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                                                           axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                                                           axis.text.x=element_text(size=12),  # X axis text
+                                                           axis.text.y=element_text(size=12))  # Y axis text
+  }
   return(p)
 }
 
@@ -285,15 +274,12 @@ CP_calcul_intern <- function(data, list_K, parallel = TRUE ){
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
-  #cl <- makeCluster(4, outfile="")
-  #registerDoSNOW(cl)
-  
+
   dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
   rownames(dist) <- data[ ,1]#[[1]]
   colnames(dist) <- data[ ,1]#[[1]]
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
-    print(k)
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
     N <- matrix(ncol = k, nrow = dim(data)[1])
     rownames(N) <- data[, 1] ; colnames(N) <- seq(k)
@@ -302,7 +288,6 @@ CP_calcul_intern <- function(data, list_K, parallel = TRUE ){
       N_dist <- N_dist[order(N_dist$dist),]
       KNeighbors_N <- as.character(N_dist$Sample_ID[1:k])
       N[j,] <- KNeighbors_N
-      
     }
     for (l in 1:dim(N)[1]){
       c_point <- rownames(N)[l]
@@ -317,7 +302,6 @@ CP_calcul_intern <- function(data, list_K, parallel = TRUE ){
     }
     CP
   }
-  
   stopCluster(cl)
   return(CP_data)
 }
@@ -325,18 +309,15 @@ CP_calcul_intern <- function(data, list_K, parallel = TRUE ){
 
 CP_calcul <- function(data, list_K, parallel = TRUE ){
   custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
-  
-  no_cores <- detectCores() # - 1
+  no_cores <- detectCores() 
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
-  
   dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
   rownames(dist) <- data[ ,1][[1]]
   colnames(dist) <- data[ ,1][[1]]
   
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
-    print(k)
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
     print(dim(CP))
     N <- matrix(ncol = k, nrow = dim(data)[1])
@@ -347,7 +328,6 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
       N_dist <- N_dist[order(N_dist$dist),]
       KNeighbors_N <- as.character(N_dist$Sample_ID[1:k])
       N[j,] <- KNeighbors_N
-      
     }
     for (l in 1:dim(N)[1]){
       c_point <- rownames(N)[l]
@@ -368,28 +348,7 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
   return(CP_data)
 }
 
-
-
 ###########################################################################################################
-
-
-Main_CP_res_test <- CP_calcul(acp_fig1_li_df , list_K = c(100,150) )
-
-CP_K = Main_CP_res_test[which(Main_CP_res_test$K ==100 ),]
-
-CP_K = data.frame("Sample_ID" = CP_K$Sample_ID, "K" = CP_K$K , "CP" = CP_K$CP)
-CP_PCA = CP_K[,1:3]
-CP_map(CP_K , acp_fig1_li_df, list(100), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
-
-
-#CP_K_UMAP =CP_K[,1:2]
-#CP_K_UMAP = cbind(CP_K_UMAP ,"UMAP_CP" =CP_K[,4])
-#head(CP_K_UMAP)
-#CP_map(CP_K_UMAP ,  data.frame(umap_md07_res_df), list(20), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
-
-#CP_map(CP_K_R, acp_fig1_li_df, list(66,111), Title = 'Centrality preservation map for PCA')
-
-
 
 ###########################################################################################################
 CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
@@ -397,6 +356,7 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
     warning(" The calcul could be long !")
   }
   colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
+
   if (dim(data)[1] != dim(data_ref)[1]){
     warning(" Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
@@ -412,14 +372,12 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
     data_ref <- cbind(data_m[, 1], data_ref)
 
   }
-
-  CP_data <- CP_calcul(data, list_K)
-  CP_ref <- CP_calcul(data_ref, list_K)
+  CP_data <- CP_calcul_intern(data, list_K)
+  CP_ref <- CP_calcul_intern(data_ref, list_K)
   abs_diff <- abs(scale(CP_data$CP) - scale(CP_ref$CP))
   abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
   abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
   main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
-
   for (i in 1:n){
     print(i)
     data_shuffle <- data[,2:dim(data)[2]]
@@ -427,12 +385,16 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
     data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
     data_shuffle <- cbind(data[,1], data_shuffle, row.names = NULL)
     colnames(data_shuffle)[1] <- "Sample_ID"
-    CP_data_A <- CP_calcul(data_shuffle, list_K)
+    CP_data_A <- CP_calcul_intern(data_shuffle, list_K)
     abs_diff <- abs(scale(CP_data_A$CP) - scale(CP_ref$CP))
     abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
     abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
     main_diff_df <- cbind(main_diff_df , abs_diff_k)
   }
+  by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
+  Means_alea <- rowMeans(by_k_alea)
+  WT  = wilcox.test( Means_alea,main_diff_df[ ,1], alternative ="less")
+  
   theme_set(theme_bw())
   p <- ggplot()
   for (i in 3:dim(main_diff_df)[2]){
@@ -443,6 +405,10 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   }
   c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,2])
   p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#B40404')
+ 
+  c_df_MA <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = Means_alea)
+  p <- p + geom_line(data = c_df_MA, aes(x=k, y=abs_diff), colour = '#388E3C')+geom_point(data = c_df_MA, aes(x=k, y=abs_diff), colour = '#388E3C')
+  
   p <- p +  labs(title="Centrality preservation signicance test",
                  y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                          plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
@@ -452,12 +418,71 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
                                                          axis.text.x=element_text(size=12),  # X axis text
                                                          axis.text.y=element_text(size=12))  # Y axis text
   print(p)
-
-  by_k_alea <- main_diff_df[,3:dim(main_diff_df)[2]]
-  Means_alea <- rowMeans(by_k_alea)
-  WT  = wilcox.test( Means_alea,main_diff_df[ ,1])
-  print(WT)
   return(list(p, WT))
+}
+###########################################################################################################
+CP_monte_carlo <- function(data, data_ref, k_val, n=100){
+  if (n > 30){
+    warning(" The calcul could be long !")
+  }
+  colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
+  print('ok1')
+  if (dim(data)[1] != dim(data_ref)[1]){
+    warning(" Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
+    data_m <- merge(data, data_ref, by=c('Sample_ID'))
+    data <- data_m[, 1:dim(data)[2]]
+    data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
+    data_ref <- cbind(data_m[, 1], data_ref)
+    print("warning1")
+  }
+  else if( dim(data)[1] == dim(data_ref)[1] & sum(as.character(data[, 1]) == as.character(data_ref[, 1])) != length(data_ref[, 1])){
+    warning("Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
+    data_m <- merge(data, data_ref, by=c('Sample_ID'))
+    data <- data_m[, 1:dim(data)[2]]
+    data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
+    data_ref <- cbind(data_m[, 1], data_ref)
+    
+  }
+  CP_data <- CP_calcul_intern(data, k_val)
+  CP_ref <- CP_calcul_intern(data_ref, k_val)
+  abs_diff <- abs(scale(CP_data$CP) - scale(CP_ref$CP))
+  abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+  abs_diff_k_ref <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+  DCP = vector()
+  for (i in 1:n){
+    print(i)
+    data_shuffle <- data[,2:dim(data)[2]]
+    data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
+    data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
+    data_shuffle <- cbind(data[,1], data_shuffle, row.names = NULL)
+    colnames(data_shuffle)[1] <- "Sample_ID"
+    CP_data_A <- CP_calcul_intern(data_shuffle, k_val)
+    abs_diff <- abs(scale(CP_data_A$CP) - scale(CP_ref$CP))
+    abs_diff_df <- data.frame('k'= CP_data$K, "abs_diff" = abs_diff)
+    abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
+    #main_diff_df <- cbind(main_diff_df , abs_diff_k)
+    DCP[i]  = abs_diff_k
+  }
+  DCP[i +1] = abs_diff_k_ref
+  rankres <- rank(DCP)
+  xrank <- rankres[length(DCP)]
+  diff <- 1-( n - xrank)
+  print(diff)
+  diff <- ifelse(diff > 0, diff, 0)
+  pval <- punif((diff + 1)/(n + 1))
+  if (!is.finite(pval) || pval < 0 || pval > 1) 
+    warning("Out-of-range p-value: reconsider test arguments")
+  statistic <- DCP[n+1]
+  names(statistic) <- "statistic"
+  parameter <- xrank
+  names(parameter) <- "observed rank"
+  method <- "Monte-Carlo simulation of DCP values"
+  lres <- list(statistic=statistic, parameter=parameter,
+               p.value=pval, alternative="lower", method=method)
+  print(lres)
+  
+  
+  return(list(lres))
 }
 ###########################################################################################################
 
@@ -479,17 +504,13 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   data_coords <- cbind(data_m[, 1],data_coords)
   colnames(data_coords)[1] <- "Sample_ID"
   data_CP$CP <- as.numeric(data_CP$CP)
-  print(dim(data_CP))
-  #print(data_CP$CP[min(which(data_CP$K == 21)):max(which(data_CP$K == 21))] == data_CP$CP[min(which(data_CP$K == 1)):max(which(data_CP$K == 1))])
   data_CP <- data_CP[order(data_CP$K),]
   L_unique_K <- unique(data_CP$K)
 
   while (length(listK)!=0){
 
-    #  print(data_CP$CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1]))] == data_CP$CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2]))]  )
     if (listK[1] %in% L_unique_K){
       CP_k1st = data_CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1])),]
-      #print(CP_k1st)
       print(dim(CP_k1st))
       CP_k1st_tm <- merge(CP_k1st, data_coords, by="Sample_ID" )
       Title1 = as.character(paste("k = ", as.character(listK[1])))
@@ -506,7 +527,6 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         }
         p_seq <- subplot(p1_seq)%>%
           layout(title = mytitle,  margin = 0.04)
-        print(p_seq)
         break
       }
       else{
@@ -528,7 +548,6 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         }
         p_seq <- subplot(p1_seq, p2_seq)%>%
           layout(title = mytitle,  margin = 0.04)
-        print(p_seq)
         break
       }
       else{
@@ -566,7 +585,6 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         }
         p_seq <- subplot(p1_seq, p2_seq, p3_seq, p4_seq)%>%
           layout(title = mytitle,  margin = 0.04)
-        print(p_seq)
         listK <- listK[-c(1:4)]
 
       }
@@ -584,8 +602,3 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   return(p_seq)
 }
 ######################
-#CP_Map_calcul_pca <- CP_calcul(acp_fig1_li_df , list_K = c(100,20,50,80) )
-#CP_K_PCA = CP_Map_calcul_pca[which(  CP_Map_calcul_pca$K == 100| CP_Map_calcul_pca$K == 20 | CP_Map_calcul_pca$K == 50 | CP_Map_calcul_pca$K == 80   ),]
-#CP_K_PCA = data_frame("Sample_ID" = CP_K_PCA$Sample_ID, "K" = CP_K_PCA$K, "CP"= CP_K_PCA$CP)
-#CP_map(CP_K_PCA , acp_fig1_li_df, list(100,20,50,80), Title = 'CP map :  resulting from the gene expression and pojected on UMAP layout ')
-
