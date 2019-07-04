@@ -9,8 +9,18 @@ if(!require(raster)) install.packages("raster",repos = "https://CRAN.R-project.o
 if(!require(spdep)) install.packages("spdep",repos = "https://CRAN.R-project.org/package=spdep")
 if(!require(FNN)) install.packages("FNN",repos = "https://CRAN.R-project.org/package=FNN")
 
-
+library(foreach)
+library(doParallel)
+library(ggplot2)
+library(RColorBrewer)
+library(plotly)
 library(rspatial)
+library(spatial)
+library(raster)
+library(spdep)
+library(FNN)
+library(rspatial)
+library(latex2exp)
 
 
 source("../SEQ_DIFF.R") 
