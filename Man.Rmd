@@ -14,7 +14,7 @@ output:
 
 ### Description 
  
-This function allows to calculate CP values for a list a file given as input. If a reference data is defined then CP values are going to be compute and statistic and graphics could be compiuted, in function of user's requests. 
+This function allows to calculate CP values for a list of data frames given as input. If a reference data frame is defined then the CP values are going to be compute and statistics and graphics could be eventually computed. 
 
 ### Usage
 
@@ -22,52 +22,53 @@ This function allows to calculate CP values for a list a file given as input. If
 
 ### Arguments
 
-* **l_data** : list of data frame whose structure is :
+* **l_data** : list of data frames whose structure is :
 
 | Sample_ID | x       | y        | ... |
 |-----------|---------|----------|-----|
 | MYID      | x_coord | y_coords | ... |
 
-These data frames contain coordinates which could be defined in $\mathbb{R^n}$.
+These data frames contain samples' coordinates which could be defined in $\mathbb{R^n}$.
 
 * **listK** : list k values
 
-* **dataref** : data frame of reference whose strucuture is the same as define above. If this argument is not defined then statistic and plots cannot be computed.
+* **dataref** : data frame of reference whose strucuture is the same as define above. If this argument is not defined then statistics and plot cannot be computed.
 
-* **colnames_res_df** : This optional argument allows to specify colnames of the returned data frame and also plot's legend if it was computed. If this argument is unsecified then the default values will be set to : V1,V2, ..., Vn (where $n$ is the length of `l_data`). 
+* **colnames_res_df** : This optional argument allows to specify colnames of the returned data frame and also plot's legend. If this argument is unsecified then the default values will be  : V1,V2, ..., Vn (where $n$ is the length of `l_data`). 
 
-* **filename** : This optional arguement allows to defined the filename on which results will be written. If this argument is unspecified then results will be returned and not written. If users choose a filename that ever exits in the current directory a incrementation to the filename will be done.
+* **filename** : This optional arguement allows to define the filename in which results will be written. If this argument is unspecified then results will be returned and not written. If users choose a filename that ever exits in the current directory a incrementation to the filename will be done.
 
-* **graphics** : This boolean argument allows to computes plots. This option is available only if `dataref` is defined. Indeed the plot is the means by k levels of absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
+* **graphics** : This boolean argument allows to computes plots. This option is available only if `dataref` is defined. Indeed the plot is the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the reference CP values.
 
-* **stats** : As previously `stats` option allows to run statistic tests only if `dataref` is defined. If only two data frames were given as input via the `l_data` then a Wilcoxon test will be computed to compare the distribution of the means by k levels of absolute differences between CP values calculated for each method and reference one. If more than two methods were defined then a Kruskal Wallis test is effected, and finally Wilcoxon paired tests are done.
+* **stats** : As previously `stats` option allows to run statistic tests only if `dataref` is defined. If only two data frames were given as input via `l_data` then a Wilcoxon test will be computed to compare the distribution of the means by k levels of the absolute differences between CP values calculated for this two method and reference ones. If more than two methods were defined then  Wilcoxon paired tests are done.
 
 ### Details 
 
-CP values' calcul are compueted in parallel according the list of k levels. Furthermore in order to compute the graphic and statistics a inner join between data frames will be done according the samples' ID.
+* CP values' calcul are compueted in parallel according the list of k levels. Furthermore in order to compute graphics and statistics a inner join between data frames will be done according the samples' ID.
+* Wilcoxon's tests assume that data are non independent.
+* On the graphic data are scaled.
 
 ### Value 
 
-According options activated the return list contains the following elements :
+According options activated the list returned contains the following elements :
 
-* **CP_Data_frame** : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of CP values, more one if `dataref` is defined. This data frame is written is a `filename` is defined.
+* **CP_Data_frame** : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of CP values, more one if `dataref` is defined. This data frame is written in `filename`.
 
 * **CP_Diff_mean_by_K** : data frame containing the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
 
-* **Kruskal_test** : Results of the Krulkal Wallis test.
 
 * **Wilcoxon_test** : Results of the Wilcoxon test.
 
-* **Paired_wilocoxon_test** : Matrix containing the Wilcoxon paired tests p.value.
+* **Paired_wilocoxon_test** : Matrix containing paired Wilcoxon tests p.values adjusted by the Bonferroni method.
 
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
-## Centrality preservation graphical description according k levels `CP_graph_by_k`
+## Centrality preservation : graphical description by k level `CP_graph_by_k`
 
 ### Description 
  
-This function allows to draw a graphic, representing the means by k levels of the absolute differences between CP values previously calculated and the ones given as references (cf : graphic returned by function`CP_main`).
+This function allows to draw a graphic, representing the means by k level of the absolute differences between CP values previously calculated and the ones given as references (cf : graphic returned by function`CP_main`).
 
 ### Usage
 
@@ -75,7 +76,7 @@ This function allows to draw a graphic, representing the means by k levels of th
 
 ### Arguments
 
-* **data_CP** : data frame containing samples' CP values for $k$ level. This data frame has the same structure as the one returned by the function `CP_main`, *i.e* : 
+* **data_CP** : data frame containing samples' CP values for $k$ levels. This data frame has the same structure as the one returned by the function `CP_main`, *i.e* : 
 
 | Sample_ID | K         | CP1     | CP2     | ... |
 |-----------|-----------|---------|---------|-----|
@@ -83,13 +84,17 @@ This function allows to draw a graphic, representing the means by k levels of th
 
 * **ref_CP_data** : Refence CP values data frame built as described above.
 
-* **Names** : This optional argument allows to specify the legend. If it is not defined `data_CP` colnames will be used.
+* **Names** : This optional argument allows to specify the legend. If it was not defined `data_CP` colnames will be used.
 
-* **list_col** : This optional argument allows to speficy colors, otherwise the list of colors previously defined is used.
+* **list_col** : This optional argument allows to speficy colors, otherwise the list of colors defined in the global environnement.
 
 ### Value 
 
-A GGplot is printed and returned.
+A ggplot is printed and returned.
+
+## Detail 
+
+Data are scaled before to be ploted.
 
 ### See also 
 
@@ -101,7 +106,7 @@ A GGplot is printed and returned.
 
 ### Description 
 
-This function allows to calculed centrality values of points which could be defined in $\mathbb{R}^N$. For a point $j$ the centrality formula is : 
+This function allows to calculed the centrality values of points which could be defined in $\mathbb{R}^N$. For a point $j$ the centrality formula is : 
 
 $$CP^d_k(j) = \sum_{1\leq i \leq N} k-\rho^d_i(j)$$
 For the scale $k$, and for dimension $d$, $j$'s centrality is defined as the sum of differences between $k$ and $\rho^d_i(j)$, which is the rank of $j$ in the $k-$neighborhood of $i$.
@@ -114,9 +119,9 @@ For the scale $k$, and for dimension $d$, $j$'s centrality is defined as the sum
 
 * **data** : data frame containing samples' ID  and their coordinates in  $\mathbb{R}^N$
 
-* **list_K** : list of k levels according the ones CP values are calculated.
+* **list_K** : list of k levels according the ones CP values were calculated.
 
-* **parallel** : optional boolean argument that have to be turned to False if to not use a parallel computing.
+* **parallel** : optional boolean argument that have to be set to False to not use parallel computing.
 
 ### Value 
 
@@ -158,11 +163,13 @@ After $n$ permutation a Willcoxon test is done.
 
 ### Value 
 
-The wilcoxon's results are returned.
+A ggplot and wilcoxon's test results are returned.
 
 ### Details
 
-If samples' ID defined in `data` and `data_ref` are not the same an inner join is effected according Samples' ID.
+* If samples' ID defined in `data` and `data_ref` are not the same an inner join is effected according Samples' ID.
+* The test assume that data are independent.
+* Data are scaled before to be ploted.
 
 ### See also 
 
@@ -284,11 +291,13 @@ These data frames contain samples' coordinates which could be defined in $\mathb
 
 * **graphics** : This boolean argument allows to computes plot. The plot represents means of $SQ$ values for the different $k$ levels and for the different data frames in `l_data`.
 
-* **stats** :  This option allows to run statistic tests, it is available only if the number of defines method is higher at least equal to two, (*i.e* `l_data`'s length is $\geq 2$). If only two data frames were given as input via the `l_data`  then a Wilcoxon test will be computed to compare the distribution of the the means by k levels of absolute differences between $SQ$ values. If more than two methods were defined then a Kruskal Wallis test is effected, and finally Wilcoxon paired tests are done.
+* **stats** :  This option allows to run statistic tests, it is available only if the number of defines method is higher at least equal to two, (*i.e* `l_data`'s length is $\geq 2$). If only two data frames were given as input via the `l_data`  then a Wilcoxon test will be computed to compare the distribution of the the means by k levels of absolute differences between $SQ$ values. If more than two methods were defined then  Wilcoxon paired tests are done.
 
 ### Details 
 
-A inner join on samples' ID is effected if those differs between the different data frames.
+* A inner join on samples' ID is effected if those differs between the different data frames.
+* Statistical tests are realized under the assumption of the non independance of data.
+* Data are scaled before to be plot.
 
 ### Value 
 
@@ -298,10 +307,8 @@ According options activated the return list contains the following elements :
 
 * **Seq_mean_by_k** : data frame containing the means of $SQ$ values by level $k$, and this each data frame defined in `l_data`.
 
-* **stats** : A list of at most two elements :
-  +  **KS** : Kruskal Wallis' results,
-  +  **WT** : Wilcoxon test's results,
-  +  **pWT** :  Matrix of Wilcoxon paired tests' p.value.
+* **WT** : Wilcoxon test's results,
+* **pWT** :  Matrix of Wilcoxon paired tests' p.value.
 
 * **graphics** : GGplot if the graphic was computed.
 
@@ -339,6 +346,10 @@ This function displays the graphic of means of sequence difference values by k v
 ### Value 
 
 A ggplot object is returned.
+
+## Details 
+
+If means by k are not given as input then data will be automatically scaled. Otherwise users have to scale their data.
 
 ### See also
 
@@ -379,6 +390,10 @@ In order to do this $n$ simulations are realized. Acccording these simulations m
 ### Value 
 
 This function returns the Wilcoxon test's results.
+
+### Details 
+
+Data are scaled before to be plot.
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
