@@ -28,7 +28,7 @@ Merging_function <- function(l_data, dataRef){
 ############################################################################################
 
 Seq_calcul <- function(l_data, dataRef, listK){
-
+  print('in calcul')
   # __________ Clusters initialization ______
   no_cores <- detectCores() # - 1
   cl <- makeCluster(no_cores)
@@ -45,22 +45,23 @@ Seq_calcul <- function(l_data, dataRef, listK){
       print("Warning : Sample_IDs in `c_data` and `dataRef` are not the same, or are not in the same order. An inner join will be effected.")
     }
     data_m <- merge(c_data, dataRef, by = 'Sample_ID')
+    print("merging in calcul")
     ncol_c_data <- dim(c_data)[2]
     c_data <- data_m[, 1:dim(c_data)[2]]
     dataRef <- data_m[, (dim(c_data)[2]+1):dim(data_m)[2]]
     dataRef <- cbind(data_m[, 1], dataRef)
     colnames(dataRef)[1] <- 'Sample_ID'
-
+    print('ok1')
     #________________ Distances matrices __________
     dist1 <- as.matrix(dist(c_data[, 2:dim(c_data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
     rownames(dist1) <- as.character(c_data[ ,1])
     colnames(dist1) <- as.character(c_data[ ,1])
-
+    
     dist2 <- as.matrix(dist(dataRef[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
     rownames(dist2) <- as.character(dataRef[ ,1])
     colnames(dist2) <- as.character(dataRef[ ,1])
     # ____________________________________________
-
+    print('ok2')
     seq_c_data <- foreach(i=1:length(listK),.combine=rbind) %dopar% {
       k <- listK[i]
       colnames(c_data)[1] <- 'Sample_ID'  ; colnames(dataRef)[1] <- 'Sample_ID'
@@ -70,57 +71,59 @@ Seq_calcul <- function(l_data, dataRef, listK){
       else if (sum(c_data[, 1] == dataRef[, 1]) != length(c_data[, 1])){
         print("Warning : Sample_IDs in `c_data` and `dataRef` are not the same, or are not in the same order. An inner join will be effected.")
       }
+      print('ok3')
       data_m <- merge(c_data, dataRef, by = 'Sample_ID')
       ncol_c_data <- dim(c_data)[2]
       c_data <- data_m[, 1:dim(c_data)[2]]
       dataRef <- data_m[, (dim(c_data)[2]+1):dim(data_m)[2]]
       dataRef <- cbind(data_m[, 1], dataRef)
       colnames(dataRef)[1] <- 'Sample_ID'
+      print('ok4')
       #________________ Distances matrices __________
       dist1 <- as.matrix(dist(c_data[, 2:dim(c_data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
       rownames(dist1) <- as.character(c_data[ ,1])
       colnames(dist1) <- as.character(c_data[ ,1])
-
+      
       dist2 <- as.matrix(dist(dataRef[, 2:dim(dataRef)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
       rownames(dist2) <- as.character(dataRef[ ,1])
       colnames(dist2) <- as.character(dataRef[ ,1])
       # ____________________________________________
-
+      
       #print(sum(rownames(dist1) == rownames(dist2)) == length(dist1[,1]))
-
+      print('ok5')
       seq_diff_l <- c()
       n <- dim(dist1)[1]
       for (i in 1:n){
         c_point <- rownames(dist1)[i]
         N1_dist_l <- list(dist1[i, ])[[1]]
         N2_dist_l <- list(dist2[i, ])[[1]]
-
+        
         names(N1_dist_l) <- rownames(dist1)
         names(N2_dist_l) <- rownames(dist2)
         N1_dist_l <- sort(N1_dist_l)
         N2_dist_l <- sort(N2_dist_l)
-
+        
         N1_rank_l <- seq(length(N1_dist_l))
         N2_rank_l <- seq(length(N2_dist_l))
         names(N1_rank_l) <- names(N1_dist_l)
         names(N2_rank_l) <- names(N2_dist_l)
-
+        
         N1_rank_l <- N1_rank_l[1:k]
         N2_rank_l <- N2_rank_l[1:k]
-
+        
         N1_df <- data.frame("Sample_ID" = names(N1_rank_l) , "Rank1" = N1_rank_l)
         N2_df <- data.frame("Sample_ID" = names(N2_rank_l) , "Rank2" = N2_rank_l)
-
+        
         All_neighbors <- unique(c(as.character(N1_df$Sample_ID),as.character(N2_df$Sample_ID)))
         
         s1 = 0
         s2 = 0
         for (j in 1:length( All_neighbors)){
           if (All_neighbors[j] %in%  N1_df$Sample_ID & All_neighbors[j] %in%  N2_df$Sample_ID ){
-          N1_index_j = which(N1_df$Sample_ID  == All_neighbors[j]  )
-          N2_index_j = which(N1_df$Sample_ID  == All_neighbors[j]  )
-          s1 = s1 + ((k - N1_df$Rank1[N1_index_j]) * abs(N1_df$Rank1[N1_index_j] - N2_df$Rank2[N2_index_j]))
-          s2 = s2 + ((k - N2_df$Rank2[N2_index_j]) * abs(N1_df$Rank1[N1_index_j] - N2_df$Rank2[N2_index_j]))
+            N1_index_j = which(N1_df$Sample_ID  == All_neighbors[j]  )
+            N2_index_j = which(N1_df$Sample_ID  == All_neighbors[j]  )
+            s1 = s1 + ((k - N1_df$Rank1[N1_index_j]) * abs(N1_df$Rank1[N1_index_j] - N2_df$Rank2[N2_index_j]))
+            s2 = s2 + ((k - N2_df$Rank2[N2_index_j]) * abs(N1_df$Rank1[N1_index_j] - N2_df$Rank2[N2_index_j]))
           }
           else if (All_neighbors[j] %in%  N1_df$Sample_ID) { 
             N1_index_j = which(N1_df$Sample_ID  == All_neighbors[j]  )
@@ -135,15 +138,16 @@ Seq_calcul <- function(l_data, dataRef, listK){
         }
         S = 0.5 * s1 + 0.5 * s2
         seq_diff_l <- c(seq_diff_l,  S)
+        
       }
-
+      print('ok6 : main loop')
       seq_diff_k_df <- data.frame('Sample_ID' = c_data$Sample_ID, 'K' = rep(k, length(c_data$Sample_ID)), 'Seq' = seq_diff_l)
       seq_diff_k_df
     }
     global_seq_list[[I]] <- seq_c_data
   }
   stopCluster(cl)
-
+  
   return(global_seq_list)
 }
 
@@ -153,29 +157,32 @@ Seq_calcul <- function(l_data, dataRef, listK){
 
 ############################################################################################
 Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
+  print("HEEEERE")
   # Implement a merging system
-
+  
   l_data <- Merging_function(l_data, dataRef)
+  print("Success merging")
   L_data <- list()
   for (i in 1:length(l_data[[1]])){
     L_data[[i]] <- l_data[[1]][[i]]
+    print(dim(L_data[[i]]))
   }
   dataRef <- l_data[[2]]
-
+  
   l_data <- L_data
-
+  
   if (length(l_data) == 1 & stats == TRUE){
     print("Warning : Statistical option are not available if `l_data` length is equal to 1.")
     stats =  FALSE
   }
-
+  
   global_seq_list <- Seq_calcul(l_data , dataRef , listK )
-
+  
   for (i in 1:length(global_seq_list)){
     global_seq_list[[i]] <- global_seq_list[[i]][complete.cases(global_seq_list[[i]]), ]
   }
   # _______________ Writing _________________
-
+  
   df_to_write <- data.frame('Sample_ID' = global_seq_list[[1]]$Sample_ID, 'K' = global_seq_list[[1]]$K )
   for (i in 1:length(global_seq_list)){
     df_to_write <- cbind(df_to_write, global_seq_list[[i]]$Seq)
@@ -195,7 +202,7 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
     }
     write.table(df_to_write, file = filename, sep = "\t")
   }
-
+  
   data_Seq <- df_to_write
   data_diff_mean_k <- data.frame("k" =  unique(data_Seq$K))
   for (j in seq(from = 3, to = dim(data_Seq)[2], by = 1)) {
@@ -228,7 +235,7 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
       }
     }
     if(dim(data_diff_mean_k)[2] == 3){
-      WT = wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[, 3])
+      WT = wilcox.test(data_diff_mean_k[,2], data_diff_mean_k[, 3], paired = TRUE)
       print(WT)
       if (graphics == TRUE){
         return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k, 'graphics' = p, 'stats' = list("WT" = WT)))
@@ -238,31 +245,20 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
       }
     }
     else{
-      ks_df <- data.frame('mean_seq' = data_diff_mean_k[, 2], 'method'= rep(paste(colnames(data_diff_mean_k)[2], 2, sep = ""), dim(data_diff_mean_k)[1]))
+      pwt_df <- data.frame('mean_seq' = data_diff_mean_k[, 2], 'method'= rep(paste(colnames(data_diff_mean_k)[2], 2, sep = ""), dim(data_diff_mean_k)[1]))
       for (i in 3:dim(data_diff_mean_k)[2]){
         c_df <- data.frame('mean_seq' = data_diff_mean_k[, i], 'method'=rep(paste(colnames(data_diff_mean_k)[i], i, sep = ""), dim(data_diff_mean_k)[1]))
-        ks_df <- rbind(ks_df, c_df )
-        KST = kruskal.test(mean_seq~ method, data = ks_df)
-        print(KST)
+        pwt_df <- rbind(pwt_df, c_df )
+     #   KST = kruskal.test(mean_seq~ method, data = ks_df)
+    #    print(KST)
       }
-      paired_test_m <- matrix(nrow = (dim(data_diff_mean_k)[2]-1) , ncol = (dim(data_diff_mean_k)[2]-1))
-      for (i in 2:dim(data_diff_mean_k)[2]){
-        for (j in 2:dim(data_diff_mean_k)[2]){
-          if (j < i){
-            c_WT <- wilcox.test(data_diff_mean_k[,i], data_diff_mean_k[,j])
-            paired_test_m[(i-1),(j-1)] <- c_WT$p.value
-          }
-        }
-      }
-      colnames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
-      rownames(paired_test_m) <- colnames(data_diff_mean_k)[2:dim(data_diff_mean_k)[2]]
-      paired_test_m[is.na(paired_test_m)]   <- '-'
-      print(paired_test_m)
+      paired_test_m  <- pairwise.wilcox.test(pwt_df$mean_seq, pwt_df$method,  p.adj = "holm",  paired = TRUE)$p.value
+      
       if (graphics == TRUE){
-        return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k, 'graphics' = p, 'KST'= KST ,  'pWT' = paired_test_m ))
+        return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k, 'graphics' = p,  'pWT' = paired_test_m ))
       }
       else{
-        return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k, 'KST'= KST ,  'pWT' = paired_test_m ))
+        return(list('Seq_df' = df_to_write, 'Seq_mean_by_k' = data_diff_mean_k,  'pWT' = paired_test_m ))
       }
     }
     print('Unexpected request ')
@@ -271,15 +267,15 @@ Seq_main <- function(l_data, dataRef, listK, colnames_res_df = NULL , filename =
 ############################################################################################
 
 ############################################################################################
-Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_K = NULL){
+Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_K = NULL, log = FALSE){
   if (is.null(data_diff_mean_K) == TRUE) {
     data_diff_mean_k <- data.frame("k" =  unique(data_Seq$K))
     for (j in seq(from = 3, to = dim(data_Seq)[2], by = 1)) {
-      mean_by_k <- tapply(data_Seq[, j], data_Seq$K, mean)
+      mean_by_k <- tapply(data_Seq[, j], data_Seq$K , mean)
       data_diff_mean_k <- cbind(data_diff_mean_k, mean_by_k)
     }
     colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- colnames(data_Seq)[3:dim(data_Seq)[2]]
-
+    
     if (is.null(Names) == FALSE){
       if (length(Names) != (dim(data_Seq)[2] - 3)){
         print("Warning : The list of names gave as input doesn't match with the number of curve.")
@@ -292,16 +288,16 @@ Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_
   else{
     data_diff_mean_k <- data_diff_mean_K
   }
-
-  data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
+  
+  if (log == FALSE){
+  data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' =( data_diff_mean_k[, 2]), 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
   if (dim(data_diff_mean_k)[2]>3){
     for (i in 3:(dim(data_diff_mean_k)[2])){
-      c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
+      c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' = (data_diff_mean_k[, i]), 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
       data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
     }
-    print(dim(data_diff_mean_k_graph))
   }
-
+  
   theme_set(theme_bw())
   p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_seq,  color=Method)) + geom_line() + geom_point()+
     scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
@@ -314,7 +310,29 @@ Seq_graph_by_k  <-function (data_Seq, Names=NULL, list_col=NULL, data_diff_mean_
                                                    axis.text.x=element_text(size=12),  # X axis text
                                                    axis.text.y=element_text(size=12))  # Y axis text
   print(p)
-
+  }
+  else {
+    data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' = log( data_diff_mean_k[, 2]), 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
+    if (dim(data_diff_mean_k)[2]>3){
+      for (i in 3:(dim(data_diff_mean_k)[2])){
+        c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_seq' = log(data_diff_mean_k[, i]), 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
+        data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
+      }
+    }
+    
+    theme_set(theme_bw())
+    p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_seq,  color=Method)) + geom_line() + geom_point()+
+      scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
+    p <- p +  labs(title="Sequence difference metric", caption = "Means of sequence difference values k  between each method and the reference one. ",
+                   y="mean(Seq_diff)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                                                     plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
+                                                     plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
+                                                     axis.title.x=element_text(size=12, face="bold"),  # X axis title
+                                                     axis.title.y=element_text(size=12, face="bold"),  # Y axis title
+                                                     axis.text.x=element_text(size=12),  # X axis text
+                                                     axis.text.y=element_text(size=12))  # Y axis text
+    print(p)
+  } 
 }
 
 ############################################################################################
@@ -351,24 +369,24 @@ seq_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
     Seq_data_A <- Seq_calcul(list(data_shuffle), dataRef = data_ref , listK = list_K)[[1]]
     mean_k <- tapply(Seq_data_A$Seq, Seq_data_A$K, mean)
     main_df <- cbind(main_df , mean_k)
-  }
+  }  
   theme_set(theme_bw())
   p <- ggplot()
   for (i in 3:(dim(main_df)[2])){
     print(i)
     c_df <- data.frame('k' = main_df[ ,1] , 'main_df' = main_df[ ,i])
-    p <- p + geom_line(data = c_df, aes(x=k, y=main_df), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=main_df), colour = '#848484')
+    p <- p + geom_line(data = c_df, aes(x=k, y=main_df), colour = '#848484')+geom_point(data = c_df, aes(x=k, y= main_df), colour = '#848484')
   }
   c_df <- data.frame('k' = main_df[ ,1] , 'main_df' = main_df[ ,2])
-  p <- p + geom_line(data = c_df, aes(x=k, y=main_df), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=main_df), colour = '#B40404')
+  p <- p + geom_line(data = c_df, aes(x=k, y = main_df), colour = '#B40404')+geom_point(data = c_df, aes(x=k, y=main_df), colour = '#B40404')
   print(p)
-
+  
   by_k_alea <- main_df[,3:dim(main_df)[2]]
   Means_alea <- rowMeans(by_k_alea)
-  print(Means_alea)
   WT  = wilcox.test(Means_alea,main_df[ ,1])
   print(WT)
-  return(WT)
-
+  return(list(WT,p))
+  
 }
+
 
