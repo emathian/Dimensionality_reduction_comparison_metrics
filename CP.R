@@ -46,6 +46,7 @@ Merging_function <- function(l_data, dataRef){
 ###########################################################################################################
 CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , filename = NULL , graphics = FALSE, stats = FALSE){
   custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
+
   # __________ Distance matrices ____________
   l_dist = list()
   for (i in 1:length(l_data)){
@@ -79,7 +80,8 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
     list_CP[[I+1]] <- CPRef
     len_list_CP[[I+1]] <- length(CPRef[ ,1])
   }  
-    
+  print('list of lengths')
+  print(len_list_CP)
   # __________________ Writing option and CP Data Frame __________
   if (length(unique(len_list_CP))==1){
     df_to_write <- data.frame('Sample_ID' = list_CP[[1]]$Sample_ID, 'K' = list_CP[[1]]$K )
@@ -92,15 +94,17 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
    warning("Input data frames don't the same number of lines a inner join will be done. ")
     df_to_write <- data.frame("Sample_ID"=list_CP[[1]]$Sample_ID, 'K'= list_CP[[1]]$K, 'V1'= list_CP[[1]]$CP)
     for (i in 2:length(list_CP)){
-      df_to_write <- merge(df_to_write, list_CP[[i]],  by=c('Sample_ID'))
+      df_to_write <- merge(df_to_write, list_CP[[i]]$CP,  by=c('Sample_ID'))
       colnames(df_to_write)[dim(df_to_write)[2]] <- paste('V', i, sep="")
     }
+    print('ok1')
   }
   if (is.null(colnames_res_df) == FALSE){
     if (is.null(dataRef) == FALSE){
       colnames_res_df <- c(colnames_res_df, 'REF')
     }
     colnames(df_to_write)[3:length(colnames(df_to_write))] <- colnames_res_df
+    print('ok2')
   }
   
   if (is.null(filename) == FALSE) {
@@ -116,11 +120,10 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
   }
   # ____________________________________________________
   
-  
   # ___________________  NO Stats, NO graphic, NO Ref _____
   if ( is.null(dataRef) == TRUE){
     if (graphics == TRUE | stats == TRUE ){
-      print("Warning:  Neither graphics nor sattistics could be computed if any reference data frame is defined ")
+      warning("Neither graphics nor sattistics could be computed if any reference data frame is defined ")
     }
     return(list("CP_Data_frame" = cp_df))
   }
@@ -149,7 +152,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
       p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
         scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
       p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
-                     y=TeX("$DCP_k =\\frac{1}{N} \\sum{i=1}^N |CP_i^2 -CP_i^N |$"), x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                     y=TeX("$DCP_k =\\frac{1}{N} \\sum_{i=1}^N |CP_i^2 -CP_i^N |$"), x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                              plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                              plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
                                                              axis.title.x=element_text(size=12, face="bold"),  # X axis title
@@ -182,9 +185,7 @@ CP_main <- function(l_data , list_K , dataRef = NULL , colnames_res_df = NULL , 
           c_df <- data.frame('mean_diff_cp' = data_diff_mean_k[, i], 'method'=rep(colnames(data_diff_mean_k)[i], dim(data_diff_mean_k)[1]))
           pwt_df <- rbind(pwt_df, c_df )
         }
-        ####################### CHECK THIS
         paired_test_m  <- pairwise.wilcox.test(pwt_df$mean_diff_cp, pwt_df$method,  p.adj = "holm",  paired = TRUE)$p.value
-     
       }
       if (graphics == FALSE & stats == TRUE & dim(data_diff_mean_k)[2] == 3){
         return (list("CP_Data_frame" = cp_df, 'CP_Diff_mean_by_K' = data_diff_mean_k , 'Wilcoxon_test' = WT))
@@ -223,7 +224,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL, log
       warning("The length of the list of Names is inconsistant in regard of the length of the input data.")
       Names <- colnames(data_CP)[3:(length(colnames(data_CP))-1)]
     }
-    for (I in seq(from = 3, to = dim(data_CP)[2]-1, by = 1)) {
+    for (I in seq(from = 3, to = (dim(data_CP)[2]-1), by = 1)) {
       abs_diff <- abs(scale(as.numeric(data_CP[, I])) - scale(as.numeric(data_CP[, dim(data_CP)[2]])))
       c_abs_diff_df <- data.frame("abs_diff" = abs_diff, 'K' = data_CP$K)
       abs_diff_k <- tapply(c_abs_diff_df$abs_diff, c_abs_diff_df$K, mean)
@@ -231,10 +232,11 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL, log
     }
     colnames(data_diff_mean_k)[2:length(colnames(data_diff_mean_k))] <- Names
   }
-
+  print("head(data_diff_mean_k)")
+  print(head(data_diff_mean_k))
   data_diff_mean_k_graph <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, 2], 'Method' = rep(as.character(colnames(data_diff_mean_k)[2]), length(data_diff_mean_k$k)))
   if (dim(data_diff_mean_k)[2] > 3){
-    for (i in 3:(dim(data_diff_mean_k)[2]-1)){
+    for (i in 3:(dim(data_diff_mean_k)[2])){
       c_df <- data.frame('k' = data_diff_mean_k$k , 'diff_cp' = data_diff_mean_k[, i], 'Method' = rep(as.character(colnames(data_diff_mean_k)[i]), length(data_diff_mean_k$k)))
       data_diff_mean_k_graph <- rbind(data_diff_mean_k_graph, c_df)
     }
@@ -244,7 +246,7 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL, log
     p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=diff_cp,  color=Method)) + geom_line() + geom_point()+
       scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
     p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
-                 y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                 y=TeX("$DCP_k =\\frac{1}{N} \\sum_{i=1}^N |CP_i^2 -CP_i^N |$"), x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                          plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                          plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
                                                          axis.title.x=element_text(size=12, face="bold"),  # X axis title
@@ -255,8 +257,8 @@ CP_graph_by_k  <-function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL, log
   else {
     p <- ggplot(data_diff_mean_k_graph, aes(x=k, y=log(diff_cp),  color=Method)) + geom_line() + geom_point()+
       scale_colour_manual(values=custom.col[1:length(unique(data_diff_mean_k_graph$Method))])
-    p <- p +  labs(title="Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
-                   y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+    p <- p +  labs(title="Log Centrality preservation", caption = "Means of absolulte differences by k, of CP values' between each method and the reference one. ",
+                   y=TeX("$log(DCP_k) =log(\\frac{1}{N} \\sum_{i=1}^N |CP_i^2 -CP_i^N |)$"), x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                            plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                            plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
                                                            axis.title.x=element_text(size=12, face="bold"),  # X axis title
@@ -307,7 +309,7 @@ CP_calcul_intern <- function(data, list_K, parallel = TRUE ){
 }
 ###########################################################################################################
 
-CP_calcul <- function(data, list_K, parallel = TRUE ){
+CP_calcul <- function(data, list_K ){
   custom.col <- c( '#1E90FF',"#1A237E", '#6C3483','#D81B60',  '#B22222', "#D16103",  "#FFD700",  '#2ECC71',"#33691E", '#626567',"#17202A") 
   no_cores <- detectCores() 
   cl <- makeCluster(no_cores)
@@ -319,12 +321,10 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
-    print(dim(CP))
     N <- matrix(ncol = k, nrow = dim(data)[1])
     rownames(N) <- data[, 1] ; colnames(N) <- seq(k)
     for (j in 1:dim(dist)[1]){ 
       N_dist <- data.frame("Sample_ID" = as.character(data[, 1]), "dist" = list(dist[j, ])[[1]] ) 
-      print('N_dist after sorting')
       N_dist <- N_dist[order(N_dist$dist),]
       KNeighbors_N <- as.character(N_dist$Sample_ID[1:k])
       N[j,] <- KNeighbors_N
@@ -339,7 +339,6 @@ CP_calcul <- function(data, list_K, parallel = TRUE ){
         }
       }
       CP[l,2] =  CP_j
-      print(CP_j)
     }
     CP
   }
@@ -379,7 +378,6 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   abs_diff_k <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
   main_diff_df <- data.frame('k' = unique(abs_diff_df$k) , "abs_diff_ref" = abs_diff_k)
   for (i in 1:n){
-    print(i)
     data_shuffle <- data[,2:dim(data)[2]]
     data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
     data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
@@ -398,7 +396,6 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   theme_set(theme_bw())
   p <- ggplot()
   for (i in 3:dim(main_diff_df)[2]){
-    print(i)
     c_df <- data.frame('k' = main_diff_df[ ,1] , 'abs_diff' = main_diff_df[ ,i])
     p <- p + geom_line(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')+geom_point(data = c_df, aes(x=k, y=abs_diff), colour = '#848484')
 
@@ -410,7 +407,7 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
   p <- p + geom_line(data = c_df_MA, aes(x=k, y=abs_diff), colour = '#388E3C')+geom_point(data = c_df_MA, aes(x=k, y=abs_diff), colour = '#388E3C')
   
   p <- p +  labs(title="Centrality preservation signicance test",
-                 y="mean(|CPi - CP_ref|)", x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
+                 y=TeX("$\\frac{1}{N}\\sum_{i=1}^N(|CPi^{d1} - CP_i^{d2}|)$"), x="K") +theme(plot.title=element_text(size=18, face="bold", color="#17202A", hjust=0.5,lineheight=1.2),  # title
                                                          plot.subtitle =element_text(size=13, color="#17202A", hjust=0.5),  # caption
                                                          plot.caption =element_text(size=10, color="#17202A", hjust=0.5),  # caption
                                                          axis.title.x=element_text(size=12, face="bold"),  # X axis title
@@ -426,14 +423,12 @@ CP_monte_carlo <- function(data, data_ref, k_val, n=100){
     warning(" The calcul could be long !")
   }
   colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
-  print('ok1')
   if (dim(data)[1] != dim(data_ref)[1]){
     warning(" Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
     data <- data_m[, 1:dim(data)[2]]
     data_ref <- data_m[, (dim(data)[2]+1):dim(data_m)[2]]
     data_ref <- cbind(data_m[, 1], data_ref)
-    print("warning1")
   }
   else if( dim(data)[1] == dim(data_ref)[1] & sum(as.character(data[, 1]) == as.character(data_ref[, 1])) != length(data_ref[, 1])){
     warning("Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
@@ -450,7 +445,6 @@ CP_monte_carlo <- function(data, data_ref, k_val, n=100){
   abs_diff_k_ref <- tapply(abs_diff_df$abs_diff, abs_diff_df$k, mean)
   DCP = vector()
   for (i in 1:n){
-    print(i)
     data_shuffle <- data[,2:dim(data)[2]]
     data_shuffle <- data_shuffle[,sample(ncol(data_shuffle))]
     data_shuffle <- data_shuffle[sample(nrow(data_shuffle)),]
@@ -467,7 +461,6 @@ CP_monte_carlo <- function(data, data_ref, k_val, n=100){
   rankres <- rank(DCP)
   xrank <- rankres[length(DCP)]
   diff <- 1-( n - xrank)
-  print(diff)
   diff <- ifelse(diff > 0, diff, 0)
   pval <- punif((diff + 1)/(n + 1))
   if (!is.finite(pval) || pval < 0 || pval > 1) 
@@ -480,8 +473,6 @@ CP_monte_carlo <- function(data, data_ref, k_val, n=100){
   lres <- list(statistic=statistic, parameter=parameter,
                p.value=pval, alternative="lower", method=method)
   print(lres)
-  
-  
   return(list(lres))
 }
 ###########################################################################################################
@@ -492,10 +483,10 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
   colnames(data_CP) <- c("Sample_ID", "K", "CP")
   colnames(data_coords) <- c("Sample_ID","x", "y")
   if (length(unique(data_CP$Sample_ID)) != dim(data_coords)[1]){
-    print("Warning : `data_CP` and `data_coords` don't have the same number of line. An inner join will be effected.")
+    warning("`data_CP` and `data_coords` don't have the same number of line. An inner join will be effected.")
   }
   else if (sum(data_CP$Sample_ID == data_coords$Sample_ID) != dim(data_CP)[1]){
-    print("Warning : Sample_IDs in `data_CP` and `data_coords` differ, or are not in the same order. An inner join will be effected.")
+    warning("Sample_IDs in `data_CP` and `data_coords` differ, or are not in the same order. An inner join will be effected.")
   }
 
   data_m <- merge(data_CP, data_coords, by = 'Sample_ID')
@@ -511,7 +502,6 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
 
     if (listK[1] %in% L_unique_K){
       CP_k1st = data_CP[min(which(data_CP$K == listK[1])):max(which(data_CP$K == listK[1])),]
-      print(dim(CP_k1st))
       CP_k1st_tm <- merge(CP_k1st, data_coords, by="Sample_ID" )
       Title1 = as.character(paste("k = ", as.character(listK[1])))
       p1_seq<- plot_ly(CP_k1st_tm, x = ~x, y = ~y , type="scatter", mode = "markers",
@@ -530,10 +520,8 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         break
       }
       else{
-        print("in second")
         CP_k2nd = data_CP[min(which(data_CP$K == listK[2])):max(which(data_CP$K == listK[2])),]
         CP_k2nd_tm <- merge(CP_k2nd, data_coords ,by="Sample_ID" )
-        print(dim(CP_k2nd))
         Title2 = as.character(paste("k = ", as.character(listK[2])))
         p2_seq<- plot_ly(CP_k2nd_tm, x = ~x, y = ~y , type="scatter", mode = "markers",
                          marker=list( size=10 , opacity=1), color = ~CP, text = ~paste('Sample: ', Sample_ID))%>%
@@ -567,7 +555,6 @@ CP_map <- function(data_CP, data_coords, listK, Title = NULL){
         }
         p_seq <- subplot(p1_seq, p2_seq, p3_seq)%>%
           layout(title = mytitle,  margin = 0.04)
-        print(p_seq)
         break
       }
       else{
