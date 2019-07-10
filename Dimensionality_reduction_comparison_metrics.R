@@ -21,7 +21,8 @@ library(spdep)
 library(FNN)
 library(rspatial)
 library(latex2exp)
-
+library(VennDiagram)
+library(venn)
 
 source("../SEQ_DIFF.R") 
 source("../CP.R") 
