@@ -280,6 +280,9 @@ CP_calcul_intern <- function(data, list_K, parallel = TRUE ){
   dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
   rownames(dist) <- data[ ,1]#[[1]]
   colnames(dist) <- data[ ,1]#[[1]]
+  if (max(list_K) > dim(data)[1]){
+    warning("The request K levels go over the total number of node. The calculation are going to be done but the results cannot reliased for k>n !")
+  }
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
@@ -317,7 +320,9 @@ CP_calcul <- function(data, list_K ){
   dist <- as.matrix(dist(data[, 2:dim(data)[2]], method = "euclidian", diag = TRUE, upper = TRUE))
   rownames(dist) <- data[ ,1][[1]]
   colnames(dist) <- data[ ,1][[1]]
-  
+  if (max(list_K) > dim(data)[1]){
+    warning("The request K levels go over the total number of node. The calculation are going to be done but the results cannot reliased for k>n !")
+  }
   CP_data <- foreach(i=1:length(list_K),.combine=rbind) %dopar% {
     k = list_K[i]
     CP <- data.frame("Sample_ID" = as.character(data[, 1]), "CP" = rep(0, length(data[, 1])), "K"=rep(k, length(data[, 1][[1]])))
@@ -355,7 +360,11 @@ CP_permutation_test <- function(data, data_ref, list_K, n=30, graph = TRUE){
     warning(" The calcul could be long !")
   }
   colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
-
+  
+  if (max(list_K) > dim(data)[1]|max(list_K) > dim(data_ref)[1]  ){
+    warning("The request K levels go over the total number of node. The calculation are going to be done but the results cannot reliased for k>n !")
+  }
+  
   if (dim(data)[1] != dim(data_ref)[1]){
     warning(" Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
     data_m <- merge(data, data_ref, by=c('Sample_ID'))
@@ -422,6 +431,10 @@ CP_monte_carlo <- function(data, data_ref, k_val, n=100){
   if (n > 30){
     warning(" The calcul could be long !")
   }
+  if (max(list_K) > dim(data)[1]|max(list_K) > dim(data_ref)[1]  ){
+    warning("The request K levels go over the total number of node. The calculation are going to be done but the results cannot reliased for k>n, that is why k will set to n !")
+  }
+  
   colnames(data)[1] <- 'Sample_ID' ; colnames(data_ref)[1] <- 'Sample_ID'
   if (dim(data)[1] != dim(data_ref)[1]){
     warning(" Sample IDs don't match between `data` and `data_ref` a merge will be effected.")
