@@ -28,7 +28,7 @@ This function allows to calculate CP values for a list of data frames given as i
 |-----------|---------|----------|-----|
 | MYID      | x_coord | y_coords | ... |
 
-These data frames contain samples' coordinates which could be defined in $\mathbb{R^n}$.
+These data frames contain samples' coordinates which could be defined in $\mathbb{R^n}$. *The Sample_ID vector have to contain characters and not factors.*
 
 * **listK** : list k values
 
@@ -40,13 +40,13 @@ These data frames contain samples' coordinates which could be defined in $\mathb
 
 * **graphics** : This boolean argument allows to computes plots. This option is available only if `dataref` is defined. Indeed the plot is the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the reference CP values.
 
-* **stats** : As previously `stats` option allows to run statistic tests only if `dataref` is defined. If only two data frames were given as input via `l_data` then a Wilcoxon test will be computed to compare the distribution of the means by k levels of the absolute differences between CP values calculated for this two method and reference ones. If more than two methods were defined then  Wilcoxon paired tests are done.
+* **stats** : As previously `stats` option allows to run statistic tests only if `dataref` is defined. If only two data frames were given as input via `l_data` then a Wilcoxon test will be computed to compare the distribution of the means by k levels of the absolute differences between CP values calculated for this two method and reference ones. If more than two methods were defined then Wilcoxon paired tests are done.
 
 ### Details 
 
-* CP values' calcul are compueted in parallel according the list of k levels. Furthermore in order to compute graphics and statistics a inner join between data frames will be done according the samples' ID.
+* CP values' calcul are computed in parallel according the list of k levels. Furthermore in order to compute graphics and statistics a inner join between data frames will be done according the samples' ID.
 * Wilcoxon's tests assume that data are non independent.
-* On the graphic data are scaled.
+* On the graphic data are center, and scaled.
 
 ### Value 
 
@@ -55,7 +55,6 @@ According options activated the list returned contains the following elements :
 * **CP_Data_frame** : data frame containing a column with the samples' Id, a column correspoding to the levels k, and $n$ colunms of CP values, more one if `dataref` is defined. This data frame is written in `filename`.
 
 * **CP_Diff_mean_by_K** : data frame containing the means by k levels of the absolute differences between CP values caculated according each data frame defined in `l_data`, and the ones resulting from the reference data frame.
-
 
 * **Wilcoxon_test** : Results of the Wilcoxon test.
 
@@ -72,7 +71,7 @@ This function allows to draw a graphic, representing the means by k level of the
 
 ### Usage
 
-`CP_graph_by_k  <- function (data_CP,  ref_CP_data, Names=NULL, list_col=NULL`
+`CP_graph_by_k  <- function (data_CP,  ref_CP_data, Names = NULL, list_col = NULL, log = FALSE)`
 
 ### Arguments
 
@@ -88,11 +87,13 @@ This function allows to draw a graphic, representing the means by k level of the
 
 * **list_col** : This optional argument allows to speficy colors, otherwise the list of colors defined in the global environnement.
 
+* **log**  : Boolean argument that allows a logarithmic represention if it is set to TRUE.
+ 
 ### Value 
 
 A ggplot is printed and returned.
 
-## Detail 
+### Detail 
 
 Data are scaled before to be ploted.
 
@@ -117,11 +118,14 @@ For the scale $k$, and for dimension $d$, $j$'s centrality is defined as the sum
 
 ### Arguments
 
-* **data** : data frame containing samples' ID  and their coordinates in  $\mathbb{R}^N$
+* **data** : **data table** containing samples' ID  and their coordinates in  $\mathbb{R}^N$
 
 * **list_K** : list of k levels according the ones CP values were calculated.
 
-* **parallel** : optional boolean argument that have to be set to False to not use parallel computing.
+### Detail 
+
+* This fonction use parallel calculation. 
+* Becarful to the class of the data given as input.
 
 ### Value 
 
@@ -131,17 +135,30 @@ A data frame containing three columns : one  with the samples' Id, another one w
 
 `CP_main`
 
+
+## Centrality calculation internal function `CP_calcul_intern`
+
+### Description 
+
+This function is the same than `CP_calcul` but it is adapted for `CP_main`. Please use `CP_calcul`.
+
+*I have to fix some errors to make `CP_calcul` functional for running with `CP_main`*
+
+### See also 
+
+`CP_calcul`
+
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 
 ## Centrality preservation permutation test `CP_permutation_test`
 
 ### Description 
-This function calculates the means by k level of the absolute differences between CP values previously calculated and the ones given as reference such as :
-$$DCP_k = \sum_{i = 1}^N (|CP_i - CP^{ref}_i|)$$
-Where $N$ is the number of sample.
-Then this function tets the following hypothesis :
+This function calculates the means by k level of the absolute differences between CP values resulting from two methods such as :
+$$DCP_k = \sum_{i = 1}^N (|CP_i^{d1} - CP^{d2}_i|)$$
+Where $N$ is the number of sample, $d1$ is the dimensional space of the first method and reciprocally for $d2$ .
+Then this function tests the following hypothesis :
 
-$DCP$ values have the same distribution as the ones expected if data coordinates where randomly distributed.
+$DCP_k$ values calculated on real data have the same mean rank as the one expected if data coordinates where randomly distributed.
 
 After $n$ permutation a Willcoxon test is done.
 
@@ -163,13 +180,14 @@ After $n$ permutation a Willcoxon test is done.
 
 ### Value 
 
-A ggplot and wilcoxon's test results are returned.
+A ggplot willl be displayed, on this grapic the gray lines correpond to the simulations, the green one to the mean distribution resulting from the simulations, and the red one to the distribution resulting from the 'real' data. Secondly, the wilcoxon's test results are returned.
 
 ### Details
 
 * If samples' ID defined in `data` and `data_ref` are not the same an inner join is effected according Samples' ID.
 * The test assume that data are independent.
 * Data are scaled before to be ploted.
+* **Becareful** the calcul could be long if the number of simulations is high ($n>30$).
 
 ### See also 
 
@@ -210,6 +228,47 @@ Plotly graphics.
 ### Details
 
 Plotly could slow down the R session. 
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+
+## Centrality preservation significance test using a Monte Carlo approch `CP_monte_carlo`
+
+### Description 
+
+This function allows to test if  given a k level the centrality preservation  of a projection is more conservative than what could be expected on random projection. This test is realized according a simulation procedure, using a Monte Carlo approch, like this the resulting *p_value* correspond to the proportion of simulations that allowed to abtain a mean of $DCP_k$ values lower than the one determined using the 'real' projection. 
+
+### Usage
+
+`CP_monte_carlo(data, data_ref, k_val, n=100)` 
+
+### Arguments
+
+* **data** : data frame containing samples' ID, and their coordinates possibly defined in $\mathbb{R}^n$ such as :
+
+| Sample_ID | x          | y       | ...     |
+|-----------|------------|---------|---------|
+| MYID      | ...        |...      |...      |
+
+
+* **data_ref** : data frame containing samples' of coordinates, as previously defined. This data frame could be seen as the reference one, since it is used to calculated the $DCP_k$ values on the 'real' data and on similutaions.
+
+* **k_val** : Level k from which the test is done.
+
+* **n** : optional argument defining the number of simulations.
+
+### Value 
+
+Statistic results of the Monte Carlo procedure.
+
+### Details
+
+Contrary to the function `CP_permutation_test`, the number of simulation could be higher since the test is realize for one k level.
+
+
+
+
+
 
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
 [comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
