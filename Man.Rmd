@@ -519,7 +519,7 @@ According options activated the return list contains the following elements :
 
 * **MS_array** : 3D array containing Moran Significance tests' p.value for each projection in row $i$, each variable in colunm $j$ and each $k$ level.
 
-* **Graph** : A ggplot is printed if the option is activated
+* **Graph** : A ggplot is printed if the option is activated.
 
 ### See also 
 `moran_index_HD`, `moran_stat_HD` and `moran_I_scatter_plot`
@@ -553,7 +553,7 @@ This function allows to calculate Moran Indexes for high dimensional data by gen
 
 * **K** : numeric argument defining k level.
 
-* **merge** : optional boolean argument that allows to checked if `spatial_att` and `datta` contains the same samples' ID. If samples' ID differs then an inner join will be done. 
+* **merge** : optional boolean argument that allows to checked if `spatial_att` and `datta` contains the same samples' ID. If samples' ID differs then an inner join will be done, otherwise the program doesn't cope the potential errors resulting of differences between the `Sample_ID` contained in `spatial_att` and `data`.
 
 ### Value 
 
@@ -567,7 +567,7 @@ Moran Index (numeric value).
 
 ### Description 
  
-Singnificance test are computed according Monte Carlo procedure. Like this $n$ simulations are done, at each iteration the vector of the variable of interest is shuffle, and then Moran Indexes are clculatated using `moran_index_HD` function. Finally the rank of the observed Moran Index in the resulting vector is computed to infer the p.value. This p.value is the proportion of Moran Indexes obtained with random data that are greater then the observed Moran Index. 
+Singnificance test computes according the Monte Carlo procedure. Like this $n$ simulations are done, at each iteration the vector of the variable of interest is shuffled, and then Moran Indexes are clculatated using the `moran_index_HD` function. Finally the rank of the observed Moran Index calculated for  the real projection is computed to infer an p.value. This p.value is the proportion of Moran Indexes obtained according random data that are greater to the one obtain according the "real projection". 
 
 ### Usage
 
@@ -582,9 +582,9 @@ Singnificance test are computed according Monte Carlo procedure. Like this $n$ s
 | MYID      | x_coords | y_coords | z_coords | ... |
 
 
-* **K** : numeric argument defining a k level.
+* **K** : numeric argument defining a level $k$.
 
-* **spatial_att** : data frame which contains variables values.
+* **spatial_att** : data frame, which contains **a** attribute of interest, whose the structure is defined below.
 
 | Sample_ID | Variable1 | 
 |-----------|-----------|
@@ -611,7 +611,7 @@ Moran Significance test p.value.
 
 ### Description 
  
-This function allows to displays the plot of Moran Indexes for each variable and and each method, a scatter plot is generated if Moran Indexes are defined for only one k level otherwise boxplot are generated. 
+This function allows to displays the plot of Moran Indexes for each variable and and each method, a scatter plot is generated if Moran Indexes are defined for only one k level otherwise boxplots are generated. 
 
 ### Usage
 
@@ -644,4 +644,19 @@ This function return a ggplot object.
 ### See also
 
 `moran_I_main`
+
+[comment]: <> (%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%)
+
+
+## Graphic of Moran Indexes for each variable by k level `moran_I_scatter_plot_by_k`
+
+### Description 
+ 
+This function allows to displays the plot of Moran Indexes for each variable for the different k levels, one graphic by method will be generated. This representation could complete the one given by `moran_I_scatter_plot`.
+
+### Usage
+
+`moran_I_scatter_plot_by_k <- function(data, Xlab = NULL, Ylab=NULL, Title= NULL)`
+
+### Arguments
 
